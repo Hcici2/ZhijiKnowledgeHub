@@ -215,8 +215,8 @@ assert.equal(state.activeView.value, 'trash')
 assert.equal(state.attachmentTrashVisible.value, true)
 state.attachmentKind.value = ''
 state.attachmentQuery.value = ''
-state.toggleAllTrashAttachments()
-assert.deepEqual(state.selectedTrashAttachments.value, ['abc'])
+state.toggleAllAttachments()
+assert.deepEqual(state.selectedAttachmentIds.value, ['abc'])
 assert.equal(state.attachmentUrl(trashFile, true, true), '/api/attachments/abc/file?preview=true&trash=true')
 confirmed = false
 await state.changeAttachmentsTrash(state.visibleSelectedAttachments.value, 'purge')
@@ -224,7 +224,7 @@ assert.equal(state.attachmentLibrary.value.length, 1)
 confirmed = true
 await state.changeAttachmentTrash(trashFile, 'purge')
 assert.equal(state.attachmentLibrary.value.length, 0)
-assert.deepEqual(state.selectedTrashAttachments.value, [])
+assert.deepEqual(state.selectedAttachmentIds.value, [])
 assert.deepEqual(attachmentCalls, [
   ['/api/attachments/abc/trash', 'POST'],
   ['/api/attachments?trash=true', undefined],
@@ -232,7 +232,7 @@ assert.deepEqual(attachmentCalls, [
 ])
 assert.match(confirmations.at(-1), /无法恢复/)
 state.attachmentLibrary.value = [trashFile, { id: 'def', name: '文档.pdf' }]
-state.toggleAllTrashAttachments()
+state.toggleAllAttachments()
 await state.changeAttachmentsTrash(state.visibleSelectedAttachments.value, 'restore')
 assert.deepEqual(attachmentCalls.slice(-2), [
   ['/api/attachments/abc/restore', 'POST'],
@@ -273,6 +273,26 @@ picker.selected.value = [standalone.id, 'excluded']
 picker.apply()
 assert.deepEqual(pickedFiles, [['pick', [standalone]]])
 const trashedNote = { ...record, deletedAt: '2026-11-18T12:00:00Z' }
+state.onlyUnlinkedAttachments.value = false
+state.attachmentKind.value = '图片'
+state.attachmentLibrary.value = [standalone, { ...standalone, id: 'second-image' }, linked]
+state.toggleAttachmentBatchMode()
+state.toggleAllAttachments()
+assert.deepEqual(state.selectedAttachmentIds.value, [standalone.id, 'second-image'])
+const bulkTrash = []
+globalThis.fetch = async (url, options) => {
+  bulkTrash.push([url, options.method])
+  return { ok: true, status: 200, json: async () => ({ success: true }) }
+}
+confirmed = false
+await state.changeAttachmentsTrash(state.visibleSelectedAttachments.value, 'trash')
+assert.deepEqual(bulkTrash, [])
+confirmed = true
+await state.changeAttachmentsTrash(state.visibleSelectedAttachments.value, 'trash')
+assert.deepEqual(bulkTrash, [standalone.id, 'second-image'].map(id => ['/api/attachments/' + id + '/trash', 'POST']))
+assert.deepEqual(state.attachmentLibrary.value, [linked])
+state.toggleAttachmentBatchMode()
+assert.deepEqual(state.selectedAttachmentIds.value, [])
 const noteDeleteCalls = []
 globalThis.fetch = async (url, options) => {
   if (options?.method === 'DELETE') noteDeleteCalls.push(url)

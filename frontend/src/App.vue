@@ -493,7 +493,8 @@ function openView(view: RecordView, noteFilter?: { day: string } | { category: s
   savedSearchId.value = null
   activeView.value = view
   attachmentTrashVisible.value = view === 'trash' && showAttachmentTrash
-  selectedTrashAttachments.value = []
+  selectedAttachmentIds.value = []
+  attachmentBatchMode.value = false
   if (view !== 'library') libraryMode.value = 'list'
   resetDates()
   currentPage.value = 1
@@ -1368,7 +1369,8 @@ const linkedAttachments = ref<NoteAttachment[]>([])
 const libraryAttachmentsLoading = ref(false)
 const libraryAttachmentsError = ref('')
 const attachmentTrashVisible = ref(false)
-const selectedTrashAttachments = ref<string[]>([])
+const selectedAttachmentIds = ref<string[]>([])
+const attachmentBatchMode = ref(false)
 const attachmentActionBusy = ref(false)
 const attachmentActionMessage = ref('')
 const linkedAttachmentsError = ref('')
@@ -1493,13 +1495,17 @@ function toggleAttachmentTrash() {
   return openView('trash', undefined, !attachmentTrashVisible.value)
 }
 const visibleSelectedAttachments = computed(() =>
-  visibleAttachments.value.filter(file => selectedTrashAttachments.value.includes(file.id))
+  visibleAttachments.value.filter(file => selectedAttachmentIds.value.includes(file.id))
 )
-const allVisibleTrashAttachmentsSelected = computed(() =>
+const allVisibleAttachmentsSelected = computed(() =>
   visibleAttachments.value.length > 0 && visibleSelectedAttachments.value.length === visibleAttachments.value.length
 )
-function toggleAllTrashAttachments() {
-  selectedTrashAttachments.value = allVisibleTrashAttachmentsSelected.value ? [] : visibleAttachments.value.map(file => file.id)
+function toggleAllAttachments() {
+  selectedAttachmentIds.value = allVisibleAttachmentsSelected.value ? [] : visibleAttachments.value.map(file => file.id)
+}
+function toggleAttachmentBatchMode() {
+  attachmentBatchMode.value = !attachmentBatchMode.value
+  selectedAttachmentIds.value = []
 }
 async function changeAttachmentTrash(file: NoteAttachment, action: 'trash' | 'restore' | 'purge') {
   return changeAttachmentsTrash([file], action)
@@ -1527,7 +1533,7 @@ async function changeAttachmentsTrash(files: NoteAttachment[], action: 'trash' |
     const remaining = (item: NoteAttachment) => !completed.has(item.id)
     attachmentLibrary.value = attachmentLibrary.value.filter(remaining)
     linkedAttachments.value = linkedAttachments.value.filter(remaining)
-    selectedTrashAttachments.value = selectedTrashAttachments.value.filter(id => !completed.has(id))
+    selectedAttachmentIds.value = selectedAttachmentIds.value.filter(id => !completed.has(id))
     const verb = action === 'trash' ? '移入回收站' : action === 'restore' ? '恢复' : '永久删除'
     attachmentActionMessage.value = `已${verb} ${completed.size} 个附件。` +
       (failure ? ` ${files.length - completed.size} 个未完成。${failure}` : '')
@@ -3214,6 +3220,8 @@ onUnmounted(() => {
           <header class="recent-heading">
             <div class="library-heading"><h1>{{ attachmentTrashVisible ? '回收站' : '附件库' }}</h1><p class="section-description">{{ visibleAttachments.length }} 个文件</p></div>
             <div class="settings-fields">
+              <button v-if="!attachmentTrashVisible" type="button" class="search-clear" :aria-pressed="attachmentBatchMode"
+                :disabled="libraryAttachmentsLoading || attachmentActionBusy" @click="toggleAttachmentBatchMode">{{ attachmentBatchMode ? '退出批量管理' : '批量管理' }}</button>
               <button v-if="!attachmentTrashVisible" type="button" class="search-clear" :disabled="libraryAttachmentsLoading || attachmentActionBusy" @click="toggleAttachmentTrash">附件回收站</button>
               <button type="button" class="search-clear" :disabled="libraryAttachmentsLoading || attachmentActionBusy" @click="loadAttachmentLibrary">刷新</button>
             </div>
@@ -3230,22 +3238,25 @@ onUnmounted(() => {
             <label v-if="!attachmentTrashVisible" class="section-description"><input v-model="onlyUnlinkedAttachments" type="checkbox" /> 只看未关联</label>
           </div>
           <p v-if="attachmentActionMessage" role="status" class="section-description">{{ attachmentActionMessage }}</p>
-          <div v-if="attachmentTrashVisible && !libraryAttachmentsLoading && !libraryAttachmentsError && visibleAttachments.length" class="settings-fields attachment-filters">
-            <button type="button" class="search-clear" :disabled="attachmentActionBusy" @click="toggleAllTrashAttachments">{{ allVisibleTrashAttachmentsSelected ? '取消全选' : '全选' }}</button>
+          <div v-if="(attachmentTrashVisible || attachmentBatchMode) && !libraryAttachmentsLoading && !libraryAttachmentsError && visibleAttachments.length" class="settings-fields attachment-filters">
+            <button type="button" class="search-clear" :disabled="attachmentActionBusy" @click="toggleAllAttachments">{{ allVisibleAttachmentsSelected ? '取消全选' : '全选' }}</button>
             <span class="section-description">已选 {{ visibleSelectedAttachments.length }} 个</span>
-            <button type="button" class="search-clear" :disabled="attachmentActionBusy || !visibleSelectedAttachments.length" @click="changeAttachmentsTrash(visibleSelectedAttachments, 'restore')">恢复所选</button>
-            <button type="button" class="search-clear" :disabled="attachmentActionBusy || !visibleSelectedAttachments.length" @click="changeAttachmentsTrash(visibleSelectedAttachments, 'purge')">永久删除所选</button>
+            <template v-if="attachmentTrashVisible">
+              <button type="button" class="search-clear" :disabled="attachmentActionBusy || !visibleSelectedAttachments.length" @click="changeAttachmentsTrash(visibleSelectedAttachments, 'restore')">恢复所选</button>
+              <button type="button" class="search-clear" :disabled="attachmentActionBusy || !visibleSelectedAttachments.length" @click="changeAttachmentsTrash(visibleSelectedAttachments, 'purge')">永久删除所选</button>
+            </template>
+            <button v-else type="button" class="search-clear" :disabled="attachmentActionBusy || !visibleSelectedAttachments.length" @click="changeAttachmentsTrash(visibleSelectedAttachments, 'trash')">移入回收站</button>
           </div>
           <p v-if="libraryAttachmentsLoading" role="status" class="section-description">正在读取附件…</p>
           <p v-else-if="libraryAttachmentsError" role="alert" class="search-error">{{ libraryAttachmentsError }}</p>
           <p v-else-if="!visibleAttachments.length" class="empty-state">{{ attachmentLibrary.length ? '没有匹配的附件。' : attachmentTrashVisible ? '附件回收站是空的。' : '还没有附件。新建或编辑笔记时可以添加。' }}</p>
           <ul v-else class="attachment-list">
             <li v-for="file in visibleAttachments" :key="file.id" class="attachment-row">
-              <input v-if="attachmentTrashVisible" v-model="selectedTrashAttachments" type="checkbox" :value="file.id"
-                :aria-label="'选择附件 ' + file.name" :disabled="attachmentActionBusy" />
-              <div class="attachment-file-info"><strong>{{ file.name }}</strong>
+              <label class="attachment-file-info">
+                <strong><input v-if="attachmentTrashVisible || attachmentBatchMode" v-model="selectedAttachmentIds" type="checkbox" :value="file.id"
+                  :aria-label="'选择附件 ' + file.name" :disabled="attachmentActionBusy" /> {{ file.name }}</strong>
                 <span class="section-description">{{ attachmentType(file.name) }} · {{ attachmentSize(file.size) }}{{ file.deleted_at ? ' · 来源在回收站' : !file.record_id ? ' · 独立文件' : '' }}</span>
-              </div>
+              </label>
               <template v-if="attachmentTrashVisible">
                 <button type="button" class="note-toolbar-text" :disabled="attachmentActionBusy" @click="changeAttachmentTrash(file, 'restore')">恢复</button>
                 <button type="button" class="note-toolbar-text" :disabled="attachmentActionBusy" @click="changeAttachmentTrash(file, 'purge')">永久删除</button>
