@@ -5,11 +5,12 @@ from threading import Lock
 from uuid import uuid4
 from zipfile import ZipFile
 import json
+import os
 import shutil
 import sqlite3
 import tempfile
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
@@ -127,6 +128,28 @@ def attachment_router(get_db, require_session, data_dir, db_path):
     def get_storage():
         with get_db() as conn:
             return {'path': str(root(conn)), 'default_path': str(default_root)}
+
+    @router.get('/settings/attachment-folders')
+    def browse_folders(path: str = Query('', max_length=1024)):
+        if not path:
+            roots = os.listdrives() if os.name == 'nt' else [os.path.abspath(os.sep)]
+            return {'path': '', 'parent': '', 'folders': [{'name': root, 'path': root} for root in roots]}
+        directory = Path(path)
+        if not directory.is_absolute() or directory.drive.startswith('\\'):
+            raise HTTPException(400, '请选择本地磁盘上的文件夹。')
+        try:
+            with os.scandir(directory) as entries:
+                folders = [
+                    {'name': entry.name, 'path': entry.path}
+                    for entry in entries if entry.is_dir(follow_symlinks=False)
+                ]
+        except (OSError, ValueError) as error:
+            raise HTTPException(400, '无法打开这个文件夹，请检查磁盘和访问权限。') from error
+        return {
+            'path': str(directory),
+            'parent': str(directory.parent) if directory.parent != directory else '',
+            'folders': sorted(folders, key=lambda folder: folder['name'].casefold()),
+        }
 
     @router.put('/settings/attachment-storage')
     def change_storage(settings: StorageLocation):

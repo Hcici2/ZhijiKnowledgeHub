@@ -166,11 +166,26 @@ await state.loadAttachmentStorage()
 assert.equal(state.attachmentStorageLabel.value, 'D:/知己附件')
 assert.equal(state.attachmentStorageStatus.value, '')
 assert.equal(state.attachmentPathInput.value, '')
-state.attachmentPathInput.value = ' "E:\\知己资料" '
+const chosenFolder = 'E:\\知己资料'
+globalThis.fetch = async url => {
+  const query = new URL(url, 'http://localhost')
+  assert.equal(query.pathname, '/api/settings/attachment-folders')
+  const path = query.searchParams.get('path') ?? ''
+  const folders = path ? [] : [{ name: '知己资料', path: chosenFolder }]
+  return { ok: true, status: 200, json: async () => ({ path, parent: '', folders }) }
+}
+state.toggleAttachmentFolderPicker()
+await new Promise(resolve => setImmediate(resolve))
+assert.equal(state.attachmentFolderPickerOpen.value, true)
+assert.equal(state.attachmentFolderList.value.folders[0].path, chosenFolder)
+await state.browseAttachmentFolders(chosenFolder)
+state.selectAttachmentFolder()
+assert.equal(state.attachmentPathInput.value, chosenFolder)
+assert.equal(state.attachmentFolderPickerOpen.value, false)
 globalThis.fetch = async (url, options) => {
   assert.equal(url, '/api/settings/attachment-storage')
   assert.equal(options.method, 'PUT')
-  assert.deepEqual(JSON.parse(options.body), { path: '"E:\\知己资料"' })
+  assert.deepEqual(JSON.parse(options.body), { path: chosenFolder })
   return { ok: true, status: 200, json: async () => ({ path: 'E:\\知己资料' }) }
 }
 await state.changeAttachmentStorage()

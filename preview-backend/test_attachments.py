@@ -48,6 +48,20 @@ upload = endpoint('/api/attachments', 'POST')
 list_files = endpoint('/api/attachments', 'GET')
 serve = endpoint('/api/attachments/{key}/file', 'GET')
 migrate = endpoint('/api/settings/attachment-storage', 'PUT')
+browse = endpoint('/api/settings/attachment-folders', 'GET')
+assert browse('')['folders']
+browsing_root = Path.cwd()
+(browsing_root / '资料').mkdir()
+listing = browse(str(browsing_root))
+assert listing['parent'] == str(browsing_root.parent)
+assert {'name': '资料', 'path': str(browsing_root / '资料')} in listing['folders']
+assert not any(folder['name'] == 'main.py' for folder in listing['folders'])
+try:
+    browse('relative')
+except HTTPException as error:
+    assert error.status_code == 400
+else:
+    raise AssertionError('folder browser accepted a relative path')
 first = complete(upload(Body(), 'docs/example.pdf'))
 note = create_record(RecordCreate(content='带附件的笔记', attachment_ids=[first['id']]))['record']
 second = complete(upload(Body(), 'example.html'))

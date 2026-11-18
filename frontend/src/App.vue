@@ -1365,6 +1365,11 @@ const attachmentKind = ref('')
 const attachmentStoragePath = ref('')
 const attachmentDefaultPath = ref('')
 const attachmentPathInput = ref('')
+type AttachmentFolderList = { path: string; parent: string; folders: { name: string; path: string }[] }
+const attachmentFolderPickerOpen = ref(false)
+const attachmentFolderList = ref<AttachmentFolderList | null>(null)
+const attachmentFoldersLoading = ref(false)
+const attachmentFoldersError = ref('')
 const attachmentStorageBusy = ref(false)
 const attachmentStorageLoading = ref(false)
 const attachmentStorageStatus = ref('')
@@ -1460,6 +1465,29 @@ async function loadAttachmentStorage() {
     attachmentStorageLoading.value = false
   }
 }
+async function browseAttachmentFolders(path = '') {
+  if (attachmentFoldersLoading.value) return
+  attachmentFoldersLoading.value = true
+  attachmentFoldersError.value = ''
+  try {
+    const query = path ? '?' + new URLSearchParams({ path }) : ''
+    attachmentFolderList.value = await attachmentRequest('/api/settings/attachment-folders' + query)
+  } catch (error) {
+    attachmentFoldersError.value = error instanceof Error ? error.message : '无法读取文件夹。'
+  } finally {
+    attachmentFoldersLoading.value = false
+  }
+}
+function toggleAttachmentFolderPicker() {
+  attachmentFolderPickerOpen.value = !attachmentFolderPickerOpen.value
+  if (attachmentFolderPickerOpen.value) void browseAttachmentFolders()
+}
+function selectAttachmentFolder() {
+  const folder = attachmentFolderList.value?.path
+  if (!folder || attachmentFoldersLoading.value) return
+  attachmentPathInput.value = folder
+  attachmentFolderPickerOpen.value = false
+}
 async function changeAttachmentStorage(useDefault = false) {
   const path = attachmentPathInput.value.trim()
   if (attachmentStorageBusy.value || attachmentStorageLoading.value || !attachmentStoragePath.value || (!useDefault && !path)) return
@@ -1471,6 +1499,7 @@ async function changeAttachmentStorage(useDefault = false) {
     })
     attachmentStoragePath.value = result.path
     attachmentPathInput.value = ''
+    attachmentFolderPickerOpen.value = false
     attachmentStorageStatus.value = '已切换到该目录，原目录里的副本仍可用于核对。'
   } catch (error) {
     attachmentStorageStatus.value = error instanceof Error ? error.message : '无法更改存储目录。'
@@ -3037,13 +3066,27 @@ onUnmounted(() => {
             <p class="section-description">当前目录：{{ attachmentStorageLabel }}</p>
             <button v-if="!attachmentStoragePath && !attachmentStorageLoading && attachmentStorageStatus" type="button" class="search-clear" @click="loadAttachmentStorage">重新读取</button>
             <form class="settings-fields" @submit.prevent="changeAttachmentStorage()">
-              <label class="attachment-path-field">新的附件存放目录
-                <input v-model="attachmentPathInput" class="category-filter" maxlength="1024" placeholder="例如 D:\知己附件" :disabled="attachmentStorageBusy" />
-              </label>
-              <button class="search-submit" :disabled="attachmentStorageBusy || !attachmentStoragePath || !attachmentPathInput.trim() || attachmentPathInput.trim() === attachmentStoragePath">迁移并切换</button>
+              <button type="button" class="search-clear" aria-controls="attachment-folder-picker" :aria-expanded="attachmentFolderPickerOpen"
+                :disabled="attachmentStorageBusy || !attachmentStoragePath" @click="toggleAttachmentFolderPicker">选择文件夹</button>
+              <button class="search-submit" :disabled="attachmentStorageBusy || attachmentFolderPickerOpen || !attachmentStoragePath || !attachmentPathInput || attachmentPathInput === attachmentStoragePath">迁移并切换</button>
               <button type="button" class="search-clear" :disabled="attachmentStorageBusy || !attachmentDefaultPath || attachmentDefaultPath === attachmentStoragePath" @click="changeAttachmentStorage(true)">使用默认目录</button>
             </form>
-            <p class="section-description">输入或粘贴完整的本地路径。目录不存在时会创建，已有附件会复制并校验后再切换。</p>
+            <p v-if="attachmentPathInput" class="section-description attachment-folder-path">已选择：{{ attachmentPathInput }}</p>
+            <section v-if="attachmentFolderPickerOpen" id="attachment-folder-picker" class="attachment-folder-picker" aria-label="选择附件存放文件夹">
+              <div class="settings-fields">
+                <button v-if="attachmentFolderList?.path" type="button" class="search-clear" :disabled="attachmentFoldersLoading" @click="browseAttachmentFolders(attachmentFolderList.parent)">上一级</button>
+                <strong class="attachment-folder-path">{{ attachmentFolderList?.path || '此电脑' }}</strong>
+              </div>
+              <p v-if="attachmentFoldersLoading" class="section-description" role="status">正在读取文件夹…</p>
+              <p v-if="attachmentFoldersError" class="section-description" role="alert">{{ attachmentFoldersError }}</p>
+              <ul v-if="attachmentFolderList?.folders.length" class="attachment-folder-list">
+                <li v-for="folder in attachmentFolderList.folders" :key="folder.path">
+                  <button type="button" class="search-clear" :disabled="attachmentFoldersLoading" @click="browseAttachmentFolders(folder.path)">{{ folder.name }} <span aria-hidden="true">›</span></button>
+                </li>
+              </ul>
+              <p v-else-if="attachmentFolderList && !attachmentFoldersLoading && !attachmentFoldersError" class="section-description">没有子文件夹。</p>
+              <button type="button" class="search-submit" :disabled="attachmentFoldersLoading || !attachmentFolderList?.path || attachmentFolderList.path === attachmentStoragePath" @click="selectAttachmentFolder">使用此文件夹</button>
+            </section>
             <p v-if="attachmentStorageStatus" class="search-result-tip" role="status">{{ attachmentStorageStatus }}</p>
           </section>
 
@@ -6793,7 +6836,10 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
 .queued-attachments { max-height: 150px; overflow: auto; }
 .queued-attachments :deep(.attachment-preview img),
 .queued-attachments :deep(.attachment-preview video) { max-height: 100px; max-width: min(100%, 220px); }
-.attachment-path-field { display: grid; flex: 1 1 260px; min-width: 0; gap: 4px; }
+.attachment-folder-path { overflow-wrap: anywhere; }
+.attachment-folder-picker { margin-top: 12px; padding: 12px; border: 1px solid var(--note-border); border-radius: 12px; background: var(--note-field); }
+.attachment-folder-list { list-style: none; padding: 0; margin: 12px 0; max-height: 240px; overflow: auto; display: grid; gap: 4px; }
+.attachment-folder-list button { width: 100%; display: flex; justify-content: space-between; text-align: left; overflow-wrap: anywhere; }
 .attachment-filters { margin-bottom: 12px; }
 .note-attachment-section { margin-bottom: 16px; }
 .note-attachment-section h3 { font-size: 15px; margin-bottom: 4px; }
