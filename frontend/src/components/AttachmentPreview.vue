@@ -12,7 +12,7 @@ watch(() => props.src, () => { failed.value = false })
     <a v-else-if="kind === 'image'" :href="src" target="_blank" rel="noopener" :aria-label="'查看原图 ' + name">
       <img :src="src" :alt="name" loading="lazy" decoding="async" @error="failed = true" />
     </a>
-    <video v-else :src="src" :aria-label="name" controls playsinline preload="none" @error="failed = true" />
+    <video v-else :src="src" :aria-label="name" controls playsinline preload="metadata" @error="failed = true" />
   </div>
 </template>
 

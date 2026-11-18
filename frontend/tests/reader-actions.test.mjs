@@ -314,3 +314,7 @@ await state.trashSelectedRecords('purge')
 assert.deepEqual(noteDeleteCalls.slice(1), ['/api/records/12/trash', '/api/records/13/trash'])
 assert.match(confirmations.at(-1), /2 条笔记.*无法恢复/)
 console.log('PASS: reader actions, filter reset and saved search shortcuts')
+const previewTemplate = parse(fs.readFileSync(new URL('../src/components/AttachmentPreview.vue', import.meta.url), 'utf8')).descriptor.template.content
+const videoTag = previewTemplate.match(/<video\b[^>]*>/)?.[0]
+assert.match(videoTag, /\bpreload="metadata"/)
+assert.doesNotMatch(videoTag, /\bautoplay\b/)
