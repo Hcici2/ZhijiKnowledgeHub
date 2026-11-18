@@ -24,6 +24,7 @@
 !/preview-backend/excel_export.py
 !/preview-backend/requirements.txt
 !/preview-backend/test_batch_organize.py
+!/preview-backend/test_release_smoke.py
 **/.env*
 **/*.db*
 **/*.sqlite*
