@@ -299,10 +299,23 @@ interface SavedSearch {
 
 const savedSearches = ref<SavedSearch[]>([])
 const savedSearchId = ref<number | null>(null)
+const savedSearchRecencyKey = 'zhiji-saved-search-recency-v1'
+function readSavedSearchRecency(): number[] {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(savedSearchRecencyKey) ?? '[]')
+    if (Array.isArray(value)) return [...new Set(value.filter((id): id is number => Number.isSafeInteger(id) && id > 0))].slice(0, 20)
+  } catch { /* Browser storage is optional. */ }
+  return []
+}
+const savedSearchRecency = ref(readSavedSearchRecency())
+function updateSavedSearchRecency(ids: number[]) {
+  savedSearchRecency.value = ids.slice(0, 20)
+  try { localStorage.setItem(savedSearchRecencyKey, JSON.stringify(savedSearchRecency.value)) } catch { /* Keep the current session order. */ }
+}
 const quickSavedSearches = computed(() => {
-  const recent = savedSearches.value.slice(-3).reverse()
-  const active = savedSearches.value.find(search => search.id === savedSearchId.value)
-  return active && !recent.some(search => search.id === active.id) ? [active, ...recent.slice(0, 2)] : recent
+  const byId = new Map(savedSearches.value.map(search => [search.id, search]))
+  const ids = new Set([...savedSearchRecency.value, ...savedSearches.value.map(search => search.id).reverse()])
+  return [...ids].map(id => byId.get(id)).filter((search): search is SavedSearch => search !== undefined).slice(0, 3)
 })
 const savedSearchName = ref('')
 const showSavedSearchForm = ref(false)
@@ -349,6 +362,7 @@ function applySavedSearch(id = savedSearchId.value) {
   if (detailOpen.value && !closeActiveReader()) return
   resetBatchMove()
   savedSearchId.value = saved.id
+  updateSavedSearchRecency([saved.id, ...savedSearchRecency.value.filter(id => id !== saved.id)])
   activeView.value = saved.view
   libraryMode.value = 'list'
   selectedCategory.value = saved.category
@@ -415,6 +429,7 @@ async function removeSavedSearch() {
     const response = await recordsRequest('/api/saved-searches/' + id, { method: 'DELETE' })
     if (!response.ok && response.status !== 404) throw new Error()
     savedSearches.value = savedSearches.value.filter(item => item.id !== id)
+    updateSavedSearchRecency(savedSearchRecency.value.filter(used => used !== id))
     if (savedSearchId.value === id) savedSearchId.value = null
   } catch {
     if (authState.value === 'ready') savedSearchError.value = '无法移除常用搜索，请重试。'
