@@ -124,4 +124,14 @@ assert.deepEqual(reordered.quickSavedSearches.value.map(search => search.id).sli
 reordered.savedSearchId.value = 4
 reordered.moveSavedSearchPin(1)
 assert.deepEqual(reordered.visibleSavedSearchPins.value, [3, 4])
+globalThis.HTMLElement = class {}
+let shortcutHandled = false
+let captureOpened = false
+state.captureDialog.value = { get open() { return captureOpened }, showModal() { captureOpened = true } }
+const shortcut = { ctrlKey: true, altKey: true, code: 'KeyN', target: null, preventDefault() { shortcutHandled = true } }
+await state.shortcutNewNote({ ...shortcut, isComposing: true })
+assert.equal(captureOpened, false)
+await state.shortcutNewNote(shortcut)
+assert.equal(shortcutHandled, true)
+assert.equal(captureOpened, true)
 console.log('PASS: reader actions, filter reset and saved search shortcuts')

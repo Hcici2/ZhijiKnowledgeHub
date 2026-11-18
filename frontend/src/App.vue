@@ -2424,6 +2424,16 @@ async function focusLibrarySearch(event: KeyboardEvent) {
   librarySearchInput.value?.select()
 }
 
+async function shortcutNewNote(event: KeyboardEvent) {
+  if (event.defaultPrevented || event.repeat || event.isComposing || event.getModifierState?.('AltGraph')) return
+  if (!event.ctrlKey || !event.altKey || event.shiftKey || event.metaKey || event.code !== 'KeyN') return
+  if (authState.value !== 'ready' || activeView.value !== 'library' || detailOpen.value || batchMoveIsActive.value ||
+    changingPassword.value || captureDialog.value?.open || historyDialog.value?.open || reviewDialog.value?.open) return
+  if (event.target instanceof HTMLElement && (event.target.isContentEditable || event.target.closest('input, textarea, select'))) return
+  event.preventDefault()
+  await openCapture()
+}
+
 interface NoteTask {
   id: number
   record_id: number
@@ -2653,12 +2663,14 @@ onMounted(() => {
   readerMedia.addEventListener('change', updateReaderWidth)
   void checkAuth()
   window.addEventListener('keydown', focusLibrarySearch)
+  window.addEventListener('keydown', shortcutNewNote)
   document.addEventListener('pointerdown', closeMenusOutside)
 })
 onUnmounted(() => {
   clearInterval(taskClockTimer)
   readerMedia?.removeEventListener('change', updateReaderWidth)
   window.removeEventListener('keydown', focusLibrarySearch)
+  window.removeEventListener('keydown', shortcutNewNote)
   document.removeEventListener('pointerdown', closeMenusOutside)
 })
 
@@ -2962,7 +2974,8 @@ onUnmounted(() => {
                   <button class="search-submit" :disabled="exportBusy">{{ exportBusy ? '正在导出…' : '下载' }}</button>
                 </form>
               </details>
-              <button type="button" class="search-submit new-note-button" @click="openCapture">
+              <button type="button" class="search-submit new-note-button" :title="activeView === 'library' ? '快捷键 Ctrl+Alt+N' : undefined"
+                :aria-keyshortcuts="activeView === 'library' ? 'Control+Alt+N' : undefined" @click="openCapture">
                 <AppIcon name="plus" :size="18" />{{ hasCaptureDraft || hasStoredCaptureDraft ? '继续草稿' : calendarVisible ? '记在这一天' : '新建笔记' }}
               </button>
             </div>
@@ -3038,6 +3051,8 @@ onUnmounted(() => {
                   type="search"
                   placeholder="搜索标题、内容、分类或标签"
                   aria-label="搜索知识库"
+                  aria-keyshortcuts="Control+K Meta+K"
+                  title="快捷键 Ctrl+K"
                 />
               </div>
 
