@@ -14,6 +14,7 @@ import { adjacentCalendarDay } from './calendarDay'
 import CaptureTemplates from './components/CaptureTemplates.vue'
 import AttachmentPreview from './components/AttachmentPreview.vue'
 import ExistingAttachmentPicker from './components/ExistingAttachmentPicker.vue'
+import DateRangePicker from './components/DateRangePicker.vue'
 
 interface ApiRecord {
   id: number
@@ -825,14 +826,21 @@ function applyDates() {
   return restartList()
 }
 
-function filterLastSevenDays() {
-  const end = new Date()
+function filterDatePreset(preset: 'all' | 'today' | 'week' | 'month-days' | 'month', end = new Date()) {
   const start = new Date(end)
-  start.setDate(start.getDate() - 6)
-  dateFromInput.value = localDateKey(start)
-  dateToInput.value = localDateKey(end)
+  const finish = new Date(end)
+  if (preset === 'week') start.setDate(start.getDate() - 6)
+  if (preset === 'month-days') start.setDate(start.getDate() - 29)
+  if (preset === 'month') {
+    start.setDate(1)
+    finish.setMonth(finish.getMonth() + 1, 0)
+  }
+  dateFromInput.value = preset === 'all' ? '' : localDateKey(start)
+  dateToInput.value = preset === 'all' ? '' : localDateKey(finish)
   return applyDates()
 }
+
+function filterLastSevenDays() { return filterDatePreset('week') }
 
 function clearDates() {
   resetDates()
@@ -1391,6 +1399,7 @@ const linkedAttachmentsError = ref('')
 const attachmentQuery = ref('')
 const attachmentKind = ref('')
 const attachmentSort = ref<'newest' | 'oldest' | 'name' | 'size'>('newest')
+const attachmentGrid = ref(false)
 const attachmentDateFrom = ref('')
 const attachmentDateTo = ref('')
 const attachmentDateInvalid = computed(() =>
@@ -3243,8 +3252,13 @@ onUnmounted(() => {
         <p v-if="authError" class="search-error" role="alert">{{ authError }}</p>
         <section v-if="activeView === 'settings'" class="recent-card settings-page">
           <h1>设置</h1>
+          <nav class="settings-section-nav" aria-label="设置分类">
+            <a href="#settings-overview">概览</a><a href="#settings-categories">分类与显示</a>
+            <a href="#settings-import">导入</a><a href="#settings-storage">附件存储</a>
+            <a href="#settings-backup">备份</a><a href="#settings-trash">回收站</a>
+          </nav>
 
-          <section class="settings-section">
+          <section id="settings-overview" class="settings-section">
             <h2>数据概览</h2>
             <dl v-if="settingsOverview" class="settings-counts">
               <div><dt>知识库记录</dt><dd>{{ settingsOverview.active }}</dd></div>
@@ -3256,7 +3270,7 @@ onUnmounted(() => {
           </section>
 
           <section class="settings-section">
-            <h2>分类管理</h2>
+            <h2 id="settings-categories">分类管理</h2>
             <form class="settings-fields" @submit.prevent="saveCategorySetting">
               <select v-model="renameFrom" class="category-filter" aria-label="分类操作" :disabled="categorySettingsBusy">
                 <option value="">新建分类</option>
@@ -3284,7 +3298,7 @@ onUnmounted(() => {
           </section>
 
           <section class="settings-section">
-            <h2>导入笔记</h2>
+            <h2 id="settings-import">导入笔记</h2>
             <p class="section-description">支持 UTF-8 的 Markdown（.md）和纯文本（.txt）。每个文件导入为一条笔记，一次最多 30 个。</p>
             <div class="settings-fields import-fields">
               <label class="import-file-label">
@@ -3314,7 +3328,7 @@ onUnmounted(() => {
           </section>
 
           <section class="settings-section">
-            <h2>附件存储</h2>
+            <h2 id="settings-storage">附件存储</h2>
             <p class="section-description">当前目录：{{ attachmentStorageLabel }}</p>
             <button v-if="!attachmentStoragePath && !attachmentStorageLoading && attachmentStorageStatus" type="button" class="search-clear" @click="loadAttachmentStorage">重新读取</button>
             <form class="settings-fields" @submit.prevent="changeAttachmentStorage()">
@@ -3344,7 +3358,7 @@ onUnmounted(() => {
           </section>
 
           <section class="settings-section">
-            <h2>本地备份</h2>
+            <h2 id="settings-backup">本地备份</h2>
             <p class="section-description">下载含笔记、待办、每日回顾、历史版本和关联的 SQLite 数据库副本。</p>
             <button type="button" class="search-clear" :disabled="backupBusy" @click="downloadDatabaseBackup">
               {{ backupBusy ? '正在生成…' : '下载 SQLite 备份' }}
@@ -3355,7 +3369,7 @@ onUnmounted(() => {
           </section>
 
           <section class="settings-section">
-            <h2>回收站</h2>
+            <h2 id="settings-trash">回收站</h2>
           <div class="trash-policy">
             <label>
               <input type="checkbox" :checked="trashPolicyEnabled === true"
@@ -3374,6 +3388,8 @@ onUnmounted(() => {
           <header class="recent-heading">
             <div class="library-heading"><h1>{{ attachmentTrashVisible ? '回收站' : '附件库' }}</h1><p class="section-description">{{ visibleAttachments.length }} 个文件</p></div>
             <div class="settings-fields">
+              <button v-if="!attachmentTrashVisible" type="button" class="search-clear" :aria-pressed="attachmentGrid"
+                @click="attachmentGrid = !attachmentGrid">{{ attachmentGrid ? '切换为列表' : '切换为网格' }}</button>
               <button v-if="!attachmentTrashVisible" type="button" class="search-clear" :aria-pressed="attachmentBatchMode"
                 :disabled="libraryAttachmentsLoading || attachmentActionBusy" @click="toggleAttachmentBatchMode">{{ attachmentBatchMode ? '退出批量管理' : '批量管理' }}</button>
               <button v-if="!attachmentTrashVisible" type="button" class="search-clear" :disabled="libraryAttachmentsLoading || attachmentActionBusy" @click="toggleAttachmentTrash">附件回收站</button>
@@ -3443,7 +3459,7 @@ onUnmounted(() => {
           <p v-if="libraryAttachmentsLoading" role="status" class="section-description">正在读取附件…</p>
           <p v-else-if="libraryAttachmentsError" role="alert" class="search-error">{{ libraryAttachmentsError }}</p>
           <p v-else-if="!visibleAttachments.length" class="empty-state">{{ attachmentLibrary.length ? '没有匹配的附件。' : attachmentTrashVisible ? '附件回收站是空的。' : '还没有附件。新建或编辑笔记时可以添加。' }}</p>
-          <ul v-else class="attachment-list">
+          <ul v-else class="attachment-list" :class="{ 'attachment-grid': attachmentGrid && !attachmentTrashVisible }">
             <li v-for="file in visibleAttachments" :key="file.id" class="attachment-row">
               <label class="attachment-file-info">
                 <strong><input v-if="attachmentTrashVisible || attachmentBatchMode" v-model="selectedAttachmentIds" type="checkbox" :value="file.id"
@@ -3684,13 +3700,9 @@ onUnmounted(() => {
               </span>
               <button v-if="appliedDateFrom || appliedDateTo" type="button" class="search-clear" @click="clearDates">清除日期</button>
             </div>
-            <form v-if="datesOpen && !calendarVisible" class="date-filter" @submit.prevent="applyDates">
-              <label>从 <input v-model="dateFromInput" class="category-filter" type="date" aria-label="开始日期" /></label>
-              <label>到 <input v-model="dateToInput" class="category-filter" type="date" aria-label="结束日期" /></label>
-              <button class="search-submit">应用日期</button>
-              <button type="button" class="search-clear" @click="filterLastSevenDays">最近 7 天</button>
-            </form>
-            <p v-if="dateError" class="search-error" role="alert">{{ dateError }}</p>
+            <DateRangePicker v-if="!calendarVisible" v-model:from="dateFromInput" v-model:to="dateToInput"
+              label="笔记日期范围" :error="dateError" @apply="applyDates"
+              @preset="$event === 'week' ? filterLastSevenDays() : filterDatePreset($event)" />
             <div v-if="quickSavedSearches.length" class="saved-searches quick-saved-searches" aria-label="常用搜索快捷入口">
               <span class="section-description">常用搜索</span>
               <button v-for="search in quickSavedSearches" :key="search.id" type="button" class="record-tag tag-filter"
@@ -3827,9 +3839,10 @@ onUnmounted(() => {
                         <button type="button" class="record-action-button batch-trash-button"
                           :disabled="batchMoveBusy || pendingRecordActions.has(record.id)" @click="changeTrashState(record, 'purge')">永久删除</button>
                       </template>
-                      <details v-else class="record-more" @mouseleave="closeMoreMenu" @keydown.esc.stop="closeMoreMenu">
-                        <summary class="note-icon-button" title="更多操作" aria-label="更多操作"><AppIcon name="more" :size="18" /></summary>
-                        <div class="record-more-actions">
+                      <div v-else class="record-more">
+                        <button type="button" class="note-icon-button" title="更多操作" aria-label="更多操作" :popovertarget="'record-actions-' + record.id"><AppIcon name="more" :size="18" /></button>
+                        <div :id="'record-actions-' + record.id" class="record-more-actions zh-popover" popover
+                          @click="($event.currentTarget as HTMLElement).hidePopover()">
                           <button type="button" @click="openLinks(record, 'edit')">编辑</button>
                           <button type="button" @click="openLinks(record, 'suggest')">整理建议</button>
                           <button type="button" @click="openLinks(record, 'links')">关联笔记</button>
@@ -3841,7 +3854,7 @@ onUnmounted(() => {
                           <button type="button" class="menu-discard" :disabled="pendingRecordActions.has(record.id)"
                             @click="changeTrashState(record, false)">移到回收站</button>
                         </div>
-                      </details>
+                      </div>
                     </div>
                   </div>
 
@@ -5378,10 +5391,10 @@ textarea::placeholder {
 
 .app-shell {
   color-scheme: light;
-  --note-border: #e7e0d3;
-  --note-field: #f9f7f1;
-  --note-ink: #302b23;
-  --note-muted: #6d6253;
+  --note-border: var(--zh-border);
+  --note-field: var(--zh-field);
+  --note-ink: var(--zh-ink);
+  --note-muted: var(--zh-muted);
   background: #f7f4ed;
   color: var(--note-ink);
 }
@@ -7155,6 +7168,39 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
   pointer-events: none;
 }
 .reader-context-status { padding: 8px 12px; background: var(--note-field); color: var(--note-muted); border-radius: 8px; }
+.settings-section-nav { display: flex; flex-wrap: wrap; gap: var(--zh-gap-sm); }
+.settings-section-nav a {
+  padding: 6px 10px;
+  color: var(--zh-accent);
+  background: var(--zh-field);
+  border: 1px solid var(--zh-border);
+  border-radius: var(--zh-radius-sm);
+  text-decoration: none;
+}
+.settings-section [id], .settings-section[id] { scroll-margin-block-start: 85px; }
+.attachment-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: var(--zh-gap-md); }
+.attachment-grid .attachment-row {
+  align-content: start;
+  padding: var(--zh-gap-md);
+  border: 1px solid var(--zh-border);
+  border-radius: var(--zh-radius-md);
+  background: var(--zh-panel);
+}
+.attachment-grid .attachment-file-info { flex-basis: 100%; }
+.record-more-actions.zh-popover {
+  position: fixed;
+  inset: 0;
+  width: max-content;
+  min-width: 150px;
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  border-color: var(--zh-border);
+  border-radius: var(--zh-radius-md);
+  box-shadow: var(--zh-overlay-shadow);
+}
+@supports (position-area: bottom) {
+  .record-more-actions.zh-popover { inset: auto; position-area: bottom span-left; margin: 6px 0; }
+}
 .calendar-record-layout { align-items: start; gap: var(--workspace-gap); }
 .calendar-record-layout > :deep(.calendar) { min-width: 0; }
 .calendar-record-layout .library-record-results { min-width: 0; }

@@ -423,3 +423,19 @@ state.libraryMode.value = 'list'
 state.recordScrollRegion.value = { scrollTop: 340 }
 await state.restartList()
 assert.equal(state.recordScrollRegion.value.scrollTop, 340)
+await state.filterDatePreset('week', new Date(2026, 0, 3, 12))
+assert.equal(state.appliedDateFrom.value, '2025-12-28')
+assert.equal(state.appliedDateTo.value, '2026-01-03')
+await state.filterDatePreset('month', new Date(2024, 1, 26, 12))
+assert.equal(state.appliedDateFrom.value, '2024-02-01')
+assert.equal(state.appliedDateTo.value, '2024-02-29')
+await state.filterDatePreset('all')
+assert.equal(state.appliedDateFrom.value, '')
+await state.filterDatePreset('month-days', new Date(2026, 2, 2, 12))
+assert.equal(state.appliedDateFrom.value, '2026-02-01')
+assert.equal(state.appliedDateTo.value, '2026-03-02')
+state.dateFromInput.value = '2026-03-04'
+state.dateToInput.value = '2026-03-01'
+await state.applyDates()
+assert.match(state.dateError.value, /不能晚于/)
+assert.equal(state.appliedDateFrom.value, '2026-02-01')
