@@ -1201,16 +1201,27 @@ function clearSearch() {
   return restartList()
 }
 
+type LibraryFilter = 'keyword' | 'category' | 'tag' | 'date'
 const activeLibraryFilters = computed(() => {
-  const filters: string[] = []
-  if (activeKeyword.value) filters.push('关键词：' + activeKeyword.value)
-  if (selectedCategory.value && activeView.value !== 'inbox') filters.push('分类：' + categoryLabel(selectedCategory.value))
-  if (selectedTag.value) filters.push('标签：' + selectedTag.value)
+  const filters: { key: LibraryFilter, label: string }[] = []
+  if (activeKeyword.value) filters.push({ key: 'keyword', label: '关键词：' + activeKeyword.value })
+  if (selectedCategory.value && activeView.value !== 'inbox') filters.push({ key: 'category', label: '分类：' + categoryLabel(selectedCategory.value) })
+  if (selectedTag.value) filters.push({ key: 'tag', label: '标签：' + selectedTag.value })
   if (!calendarVisible.value && (appliedDateFrom.value || appliedDateTo.value)) {
-    filters.push('日期：' + (appliedDateFrom.value || '不限') + ' 至 ' + (appliedDateTo.value || '不限'))
+    filters.push({ key: 'date', label: '日期：' + (appliedDateFrom.value || '不限') + ' 至 ' + (appliedDateTo.value || '不限') })
   }
   return filters
 })
+
+function removeLibraryFilter(filter: LibraryFilter) {
+  if (batchMoveBusy.value || batchBusy.value) return
+  savedSearchId.value = null
+  if (filter === 'keyword') return clearSearch()
+  if (filter === 'category') selectedCategory.value = ''
+  if (filter === 'tag') selectedTag.value = ''
+  if (filter === 'date') resetDates()
+  return restartList()
+}
 
 function clearLibraryFilters() {
   if (batchMoveBusy.value || batchBusy.value) return
@@ -2931,7 +2942,10 @@ onUnmounted(() => {
               </button>
           <div v-if="activeLibraryFilters.length" class="active-library-filters" aria-label="当前筛选">
             <span>当前筛选</span>
-            <span v-for="filter in activeLibraryFilters" :key="filter" class="record-tag">{{ filter }}</span>
+            <button v-for="filter in activeLibraryFilters" :key="filter.key" type="button" class="record-tag tag-filter"
+              :aria-label="'移除筛选 ' + filter.label" :disabled="batchMoveBusy || batchBusy" @click="removeLibraryFilter(filter.key)">
+              {{ filter.label }} <span aria-hidden="true">×</span>
+            </button>
             <button type="button" class="note-toolbar-text" :disabled="batchMoveBusy || batchBusy" @click="clearLibraryFilters">清除全部筛选</button>
           </div>
           <div v-show="!calendarVisible || !splitReader || splitCalendarControls === 'filters'" class="library-filters">
@@ -2990,8 +3004,6 @@ onUnmounted(() => {
             </form>
             <p v-if="dateError" class="search-error" role="alert">{{ dateError }}</p>
             <div class="saved-searches">
-              <button v-if="selectedTag" type="button" class="record-tag tag-filter"
-                :aria-label="'清除标签筛选 ' + selectedTag" @click="filterByTag('')">标签：{{ selectedTag }} ×</button>
               <select v-if="savedSearches.length" v-model="savedSearchId" class="category-filter"
                 aria-label="常用搜索" @change="applySavedSearch">
                 <option :value="null">常用搜索</option>
