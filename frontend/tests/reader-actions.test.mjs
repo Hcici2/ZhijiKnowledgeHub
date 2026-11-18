@@ -165,4 +165,19 @@ globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ pa
 await state.loadAttachmentStorage()
 assert.equal(state.attachmentStorageLabel.value, 'D:/知己附件')
 assert.equal(state.attachmentStorageStatus.value, '')
+assert.equal(state.attachmentPathInput.value, '')
+state.attachmentPathInput.value = ' "E:\\知己资料" '
+globalThis.fetch = async (url, options) => {
+  assert.equal(url, '/api/settings/attachment-storage')
+  assert.equal(options.method, 'PUT')
+  assert.deepEqual(JSON.parse(options.body), { path: '"E:\\知己资料"' })
+  return { ok: true, status: 200, json: async () => ({ path: 'E:\\知己资料' }) }
+}
+await state.changeAttachmentStorage()
+assert.equal(state.attachmentStorageLabel.value, 'E:\\知己资料')
+assert.equal(state.attachmentPathInput.value, '')
+assert.equal(state.attachmentInlineKind('图片.JPG'), 'image')
+assert.equal(state.attachmentInlineKind('录屏.mp4'), 'video')
+assert.equal(state.attachmentInlineKind('说明.pdf'), undefined)
+assert.equal(state.attachmentUrl({ id: 'abc' }, true), '/api/attachments/abc/file?preview=true')
 console.log('PASS: reader actions, filter reset and saved search shortcuts')

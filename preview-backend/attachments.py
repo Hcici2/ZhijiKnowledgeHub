@@ -130,20 +130,28 @@ def attachment_router(get_db, require_session, data_dir, db_path):
 
     @router.put('/settings/attachment-storage')
     def change_storage(settings: StorageLocation):
-        requested = Path(settings.path.strip()) if settings.path.strip() else default_root
+        raw_path = settings.path.strip()
+        if raw_path.startswith('"') and raw_path.endswith('"'):
+            raw_path = raw_path[1:-1].strip()
+        if settings.path.strip() and not raw_path:
+            raise HTTPException(400, '请输入要切换到的本地文件夹路径。')
+        requested = Path(raw_path) if raw_path else default_root
         if not requested.is_absolute() or requested.drive.startswith('\\'):
             raise HTTPException(400, '请输入本地文件夹的完整路径。')
         with lock, get_db() as conn:
             current = root(conn).resolve()
-            destination = requested.resolve()
+            try:
+                destination = requested.resolve()
+            except (OSError, ValueError, RuntimeError) as error:
+                raise HTTPException(400, '无法访问这个文件夹，请检查路径和权限。') from error
             if destination == current:
                 return {'path': str(current), 'copied': 0}
-            if destination in current.parents or current in destination.parents:
-                raise HTTPException(400, '请选择与当前目录独立的文件夹。')
             ids = [row['id'] for row in conn.execute('SELECT id FROM attachments')]
             created = []
             try:
                 destination.mkdir(parents=True, exist_ok=True)
+                with tempfile.TemporaryFile(dir=destination):
+                    pass
                 for key in ids:
                     source, target = current / key, destination / key
                     if target.exists():
@@ -159,7 +167,7 @@ def attachment_router(get_db, require_session, data_dir, db_path):
                             raise OSError('verification failure')
                 conn.execute('INSERT OR REPLACE INTO attachment_storage(id,path) VALUES (1,?)', (str(destination),))
                 conn.commit()
-            except (OSError, sqlite3.Error) as error:
+            except (OSError, ValueError, sqlite3.Error) as error:
                 for path in created:
                     try:
                         path.unlink(missing_ok=True)

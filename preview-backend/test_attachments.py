@@ -78,6 +78,12 @@ assert (destination / first['id']).read_bytes() == b'conflict'
 (destination / first['id']).unlink()
 assert migrate(StorageLocation(path=str(destination)))['copied'] == 2
 assert Path(serve(first['id']).path).parent == destination
+nested = destination / '新的附件目录'
+assert migrate(StorageLocation(path=f' "{nested}" '))['copied'] == 2
+assert Path(serve(first['id']).path).parent == nested
+assert (destination / first['id']).read_bytes() == b'example bytes'
+assert migrate(StorageLocation(path=''))['copied'] == 0
+assert Path(serve(first['id']).path).parent == DATA_DIR / 'attachments'
 delete_record(note['id'])
 assert all(file['deleted_at'] for file in list_files()['attachments'])
 restore_record(note['id'])

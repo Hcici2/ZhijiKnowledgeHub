@@ -12,6 +12,7 @@ import AppIcon from './components/AppIcon.vue'
 import { reviewMarkdown, reviewPlainText } from './reviewExport'
 import { adjacentCalendarDay } from './calendarDay'
 import CaptureTemplates from './components/CaptureTemplates.vue'
+import AttachmentPreview from './components/AttachmentPreview.vue'
 
 interface ApiRecord {
   id: number
@@ -1378,6 +1379,11 @@ function attachmentType(name: string) {
   return '其他文件'
 }
 function attachmentCanPreview(name: string) { return /\.(png|jpe?g|gif|webp|pdf|mp4|webm)$/i.test(name) }
+function attachmentInlineKind(name: string) {
+  if (attachmentType(name) === '图片') return 'image'
+  if (/\.(mp4|webm)$/i.test(name)) return 'video'
+  return undefined
+}
 function attachmentSize(size: number) {
   return size < 1024 ? size + ' B' : size < 1048576 ? (size / 1024).toFixed(1) + ' KB' : (size / 1048576).toFixed(1) + ' MB'
 }
@@ -1446,7 +1452,7 @@ async function loadAttachmentStorage() {
   attachmentStorageStatus.value = ''
   try {
     const result = await attachmentRequest('/api/settings/attachment-storage')
-    attachmentStoragePath.value = attachmentPathInput.value = result.path
+    attachmentStoragePath.value = result.path
     attachmentDefaultPath.value = result.default_path
   } catch (error) {
     attachmentStorageStatus.value = error instanceof Error ? error.message : '无法读取存储设置。'
@@ -1455,14 +1461,16 @@ async function loadAttachmentStorage() {
   }
 }
 async function changeAttachmentStorage(useDefault = false) {
-  if (attachmentStorageBusy.value || (!useDefault && !attachmentPathInput.value.trim())) return
+  const path = attachmentPathInput.value.trim()
+  if (attachmentStorageBusy.value || attachmentStorageLoading.value || !attachmentStoragePath.value || (!useDefault && !path)) return
   attachmentStorageBusy.value = true
   attachmentStorageStatus.value = '正在复制和校验附件，请保持窗口打开…'
   try {
     const result = await attachmentRequest('/api/settings/attachment-storage', {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: useDefault ? '' : attachmentPathInput.value.trim().replace(/^"(.*)"$/, '$1') }),
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: useDefault ? '' : path }),
     })
-    attachmentStoragePath.value = attachmentPathInput.value = result.path
+    attachmentStoragePath.value = result.path
+    attachmentPathInput.value = ''
     attachmentStorageStatus.value = '已切换到该目录，原目录里的副本仍可用于核对。'
   } catch (error) {
     attachmentStorageStatus.value = error instanceof Error ? error.message : '无法更改存储目录。'
@@ -3029,13 +3037,13 @@ onUnmounted(() => {
             <p class="section-description">当前目录：{{ attachmentStorageLabel }}</p>
             <button v-if="!attachmentStoragePath && !attachmentStorageLoading && attachmentStorageStatus" type="button" class="search-clear" @click="loadAttachmentStorage">重新读取</button>
             <form class="settings-fields" @submit.prevent="changeAttachmentStorage()">
-              <label class="attachment-path-field">本地文件夹路径
+              <label class="attachment-path-field">新的附件存放目录
                 <input v-model="attachmentPathInput" class="category-filter" maxlength="1024" placeholder="例如 D:\知己附件" :disabled="attachmentStorageBusy" />
               </label>
               <button class="search-submit" :disabled="attachmentStorageBusy || !attachmentStoragePath || !attachmentPathInput.trim() || attachmentPathInput.trim() === attachmentStoragePath">迁移并切换</button>
               <button type="button" class="search-clear" :disabled="attachmentStorageBusy || !attachmentDefaultPath || attachmentDefaultPath === attachmentStoragePath" @click="changeAttachmentStorage(true)">使用默认目录</button>
             </form>
-            <p class="section-description">可在资源管理器中复制文件夹路径再粘贴。切换前会校验已复制的文件。</p>
+            <p class="section-description">输入或粘贴完整的本地路径。目录不存在时会创建，已有附件会复制并校验后再切换。</p>
             <p v-if="attachmentStorageStatus" class="search-result-tip" role="status">{{ attachmentStorageStatus }}</p>
           </section>
 
@@ -3086,8 +3094,9 @@ onUnmounted(() => {
                 <span class="section-description">{{ attachmentType(file.name) }} · {{ attachmentSize(file.size) }}{{ file.deleted_at ? ' · 来源在回收站' : !file.record_id ? ' · 独立文件' : '' }}</span>
               </div>
               <button v-if="file.record_id" type="button" class="note-toolbar-text" :title="file.record_title ?? undefined" @click="openSourceNote(file.record_id)">来源笔记</button>
-              <a v-if="attachmentCanPreview(file.name)" class="note-toolbar-text" :href="attachmentUrl(file, true)" target="_blank" rel="noopener">预览</a>
+              <a v-if="!attachmentInlineKind(file.name) && attachmentCanPreview(file.name)" class="note-toolbar-text" :href="attachmentUrl(file, true)" target="_blank" rel="noopener">预览</a>
               <a class="note-toolbar-text" :href="attachmentUrl(file)" :download="file.name">下载</a>
+              <AttachmentPreview v-if="attachmentInlineKind(file.name)" :kind="attachmentInlineKind(file.name)" :name="file.name" :src="attachmentUrl(file, true)" />
             </li>
           </ul>
         </section>
@@ -3563,6 +3572,7 @@ onUnmounted(() => {
                 <li v-for="file in captureAttachments" :key="file.id" class="attachment-row">
                   <span class="attachment-file-info">{{ file.name }}</span>
                   <button type="button" class="note-toolbar-text" :disabled="captureBusy || attachmentUploadBusy" @click="captureAttachments = captureAttachments.filter(item => item.id !== file.id)">取消关联</button>
+                  <AttachmentPreview v-if="attachmentInlineKind(file.name)" :kind="attachmentInlineKind(file.name)" :name="file.name" :src="attachmentUrl(file, true)" />
                 </li>
               </ul>
             </div>
@@ -3837,6 +3847,7 @@ onUnmounted(() => {
                   <span class="attachment-file-info">{{ file.name }}</span>
                   <button type="button" class="note-toolbar-text" :disabled="isSavingEdit || attachmentUploadBusy"
                     @click="editAttachmentQueue[linkedRecord.id] = attachedEditFiles.filter(item => item.id !== file.id)">取消关联</button>
+                  <AttachmentPreview v-if="attachmentInlineKind(file.name)" :kind="attachmentInlineKind(file.name)" :name="file.name" :src="attachmentUrl(file, true)" />
                 </li>
               </ul>
             </div>
@@ -3917,8 +3928,9 @@ onUnmounted(() => {
               <ul v-if="linkedAttachments.length" class="attachment-list">
                 <li v-for="file in linkedAttachments" :key="file.id" class="attachment-row">
                   <span class="attachment-file-info">{{ file.name }}</span>
-                  <a v-if="attachmentCanPreview(file.name)" class="note-toolbar-text" :href="attachmentUrl(file, true)" target="_blank" rel="noopener">预览</a>
+                  <a v-if="!attachmentInlineKind(file.name) && attachmentCanPreview(file.name)" class="note-toolbar-text" :href="attachmentUrl(file, true)" target="_blank" rel="noopener">预览</a>
                   <a class="note-toolbar-text" :href="attachmentUrl(file)" :download="file.name">下载</a>
+                  <AttachmentPreview v-if="attachmentInlineKind(file.name)" :kind="attachmentInlineKind(file.name)" :name="file.name" :src="attachmentUrl(file, true)" />
                 </li>
               </ul>
             </section>
@@ -6778,6 +6790,9 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
 .attachment-file-info { display: grid; gap: 2px; flex: 1 1 125px; min-width: 0; overflow-wrap: anywhere; }
 .queued-attachments { width: 100%; max-height: 18dvh; overflow: auto; }
 .queued-attachments .attachment-row { padding-block: 3px; font-size: 13px; }
+.queued-attachments { max-height: 150px; overflow: auto; }
+.queued-attachments :deep(.attachment-preview img),
+.queued-attachments :deep(.attachment-preview video) { max-height: 100px; max-width: min(100%, 220px); }
 .attachment-path-field { display: grid; flex: 1 1 260px; min-width: 0; gap: 4px; }
 .attachment-filters { margin-bottom: 12px; }
 .note-attachment-section { margin-bottom: 16px; }
