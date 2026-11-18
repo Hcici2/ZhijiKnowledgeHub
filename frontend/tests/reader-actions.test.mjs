@@ -239,4 +239,37 @@ assert.deepEqual(attachmentCalls.slice(-2), [
   ['/api/attachments/def/restore', 'POST'],
 ])
 assert.equal(state.attachmentLibrary.value.length, 0)
+const standalone = { id: '1'.repeat(32), name: '照片.jpg', size: 24, record_id: null }
+const linked = { id: '2'.repeat(32), name: '合同.pdf', size: 42, record_id: 12 }
+globalThis.fetch = async url => {
+  assert.equal(url, '/api/attachments')
+  return { ok: true, status: 200, json: async () => ({ attachments: [standalone, linked] }) }
+}
+const available = await state.loadUnlinkedAttachments()
+assert.deepEqual(available, [standalone])
+state.queueExistingAttachments([...available, standalone])
+assert.deepEqual(state.captureAttachments.value, [standalone])
+state.editingId.value = 12
+state.queueExistingAttachments(available, 12)
+assert.deepEqual(state.attachedEditFiles.value, [standalone])
+state.queueExistingAttachments(Array.from({ length: 50 }, (_, id) => ({ ...standalone, id: 'extra-' + id })), 12)
+assert.deepEqual(state.attachedEditFiles.value, [standalone])
+assert.match(state.attachmentUploadStatus.value, /50/)
+state.attachmentTrashVisible.value = false
+state.attachmentLibrary.value = [standalone, linked]
+state.onlyUnlinkedAttachments.value = true
+assert.deepEqual(state.visibleAttachments.value, [standalone])
+const pickedFiles = []
+const picker = load('../src/components/ExistingAttachmentPicker.vue', {
+  load: async () => [standalone, { ...standalone, id: 'excluded', name: '备份.jpg' }],
+  excluded: ['excluded'],
+  disabled: false,
+}, (event, files) => pickedFiles.push([event, files]))
+await picker.loadChoices()
+assert.deepEqual(picker.visible.value, [standalone])
+picker.query.value = '不存在'
+assert.deepEqual(picker.visible.value, [])
+picker.selected.value = [standalone.id, 'excluded']
+picker.apply()
+assert.deepEqual(pickedFiles, [['pick', [standalone]]])
 console.log('PASS: reader actions, filter reset and saved search shortcuts')

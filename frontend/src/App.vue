@@ -13,6 +13,7 @@ import { reviewMarkdown, reviewPlainText } from './reviewExport'
 import { adjacentCalendarDay } from './calendarDay'
 import CaptureTemplates from './components/CaptureTemplates.vue'
 import AttachmentPreview from './components/AttachmentPreview.vue'
+import ExistingAttachmentPicker from './components/ExistingAttachmentPicker.vue'
 
 interface ApiRecord {
   id: number
@@ -1369,6 +1370,7 @@ const attachmentActionMessage = ref('')
 const linkedAttachmentsError = ref('')
 const attachmentQuery = ref('')
 const attachmentKind = ref('')
+const onlyUnlinkedAttachments = ref(false)
 const attachmentStoragePath = ref('')
 const attachmentDefaultPath = ref('')
 const attachmentPathInput = ref('')
@@ -1400,6 +1402,7 @@ function attachmentSize(size: number) {
   return size < 1024 ? size + ' B' : size < 1048576 ? (size / 1024).toFixed(1) + ' KB' : (size / 1048576).toFixed(1) + ' MB'
 }
 const visibleAttachments = computed(() => attachmentLibrary.value.filter(file =>
+  (attachmentTrashVisible.value || !onlyUnlinkedAttachments.value || !file.record_id) &&
   (!attachmentKind.value || attachmentType(file.name) === attachmentKind.value) &&
   file.name.toLowerCase().includes(attachmentQuery.value.trim().toLowerCase())
 ))
@@ -1419,6 +1422,26 @@ async function attachmentRequest(url: string, options?: RequestInit) {
     throw new Error(typeof result.detail === 'string' ? result.detail : '附件操作失败，请重试。')
   }
   return response.json()
+}
+
+async function loadUnlinkedAttachments(): Promise<NoteAttachment[]> {
+  const result = await attachmentRequest('/api/attachments')
+  return result.attachments.filter((file: NoteAttachment) => !file.record_id)
+}
+
+function queueExistingAttachments(files: NoteAttachment[], noteId: number | null = null) {
+  const queue = noteId === null ? captureAttachments.value : (editAttachmentQueue.value[noteId] ??= [])
+  const unique = new Map(queue.map(file => [file.id, file]))
+  for (const file of files) {
+    if (!file.record_id) unique.set(file.id, file)
+  }
+  if (unique.size > 50) {
+    attachmentUploadStatus.value = '一次最多关联 50 个附件，请减少选择。'
+    return
+  }
+  if (noteId === null) captureAttachments.value = [...unique.values()]
+  else editAttachmentQueue.value[noteId] = [...unique.values()]
+  attachmentUploadStatus.value = '保存笔记后，所选附件会关联到这篇笔记。'
 }
 
 async function uploadNoteAttachments(event: Event, noteId: number | null = null) {
@@ -3195,6 +3218,7 @@ onUnmounted(() => {
             <select v-model="attachmentKind" class="category-filter" aria-label="附件类型">
               <option value="">全部类型</option><option>图片</option><option>PDF</option><option>视频</option><option>其他文件</option>
             </select>
+            <label v-if="!attachmentTrashVisible" class="section-description"><input v-model="onlyUnlinkedAttachments" type="checkbox" /> 只看未关联</label>
           </div>
           <p v-if="attachmentActionMessage" role="status" class="section-description">{{ attachmentActionMessage }}</p>
           <div v-if="attachmentTrashVisible && !libraryAttachmentsLoading && !libraryAttachmentsError && visibleAttachments.length" class="settings-fields attachment-filters">
@@ -3698,6 +3722,8 @@ onUnmounted(() => {
               <label class="attachment-action search-clear"><AppIcon name="attachments" :size="16" />添加附件
                 <input type="file" multiple aria-label="为新笔记添加附件" :disabled="captureBusy || attachmentUploadBusy" @change="uploadNoteAttachments($event)" />
               </label>
+              <ExistingAttachmentPicker :load="loadUnlinkedAttachments" :excluded="captureAttachments.map(file => file.id)"
+                :disabled="captureBusy || attachmentUploadBusy" @pick="queueExistingAttachments($event)" />
               <span v-if="attachmentUploadStatus" class="section-description" role="status">{{ attachmentUploadStatus }}</span>
               <ul v-if="captureAttachments.length" class="attachment-list queued-attachments">
                 <li v-for="file in captureAttachments" :key="file.id" class="attachment-row">
@@ -3972,6 +3998,8 @@ onUnmounted(() => {
               <label class="attachment-action search-clear"><AppIcon name="attachments" :size="16" />添加附件
                 <input type="file" multiple aria-label="为当前笔记添加附件" :disabled="isSavingEdit || attachmentUploadBusy" @change="uploadNoteAttachments($event, linkedRecord.id)" />
               </label>
+              <ExistingAttachmentPicker :load="loadUnlinkedAttachments" :excluded="attachedEditFiles.map(file => file.id)"
+                :disabled="isSavingEdit || attachmentUploadBusy" @pick="queueExistingAttachments($event, linkedRecord.id)" />
               <span v-if="attachmentUploadStatus" class="section-description" role="status">{{ attachmentUploadStatus }}</span>
               <ul v-if="attachedEditFiles.length" class="attachment-list queued-attachments">
                 <li v-for="file in attachedEditFiles" :key="file.id" class="attachment-row">
