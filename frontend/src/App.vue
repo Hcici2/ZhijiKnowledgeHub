@@ -312,6 +312,7 @@ const savedSearchRecency = ref(readSavedSearchIds(savedSearchRecencyKey, 20))
 const savedSearchPins = ref(readSavedSearchIds(savedSearchPinsKey, 3))
 const visibleSavedSearchPins = computed(() => savedSearchPins.value.filter(id => savedSearches.value.some(search => search.id === id)))
 const selectedSavedSearchPinned = computed(() => savedSearchId.value !== null && visibleSavedSearchPins.value.includes(savedSearchId.value))
+const selectedSavedSearchPinIndex = computed(() => savedSearchId.value === null ? -1 : visibleSavedSearchPins.value.indexOf(savedSearchId.value))
 function updateSavedSearchPins(ids: number[]) {
   savedSearchPins.value = ids
   try { localStorage.setItem(savedSearchPinsKey, JSON.stringify(ids)) } catch { /* Keep the current session pins. */ }
@@ -322,6 +323,16 @@ function toggleSavedSearchPin() {
   const pins = visibleSavedSearchPins.value
   if (pins.includes(id)) updateSavedSearchPins(pins.filter(pin => pin !== id))
   else if (pins.length < 3) updateSavedSearchPins([...pins, id])
+}
+function moveSavedSearchPin(direction: -1 | 1) {
+  const index = selectedSavedSearchPinIndex.value
+  const pins = [...visibleSavedSearchPins.value]
+  const destination = index + direction
+  if (index < 0 || destination < 0 || destination >= pins.length) return
+  const [id] = pins.splice(index, 1)
+  if (id === undefined) return
+  pins.splice(destination, 0, id)
+  updateSavedSearchPins(pins)
 }
 function updateSavedSearchRecency(ids: number[]) {
   savedSearchRecency.value = ids.slice(0, 20)
@@ -3075,6 +3086,10 @@ onUnmounted(() => {
                 :disabled="savingSearch || (!selectedSavedSearchPinned && visibleSavedSearchPins.length >= 3)" @click="toggleSavedSearchPin">
                 {{ selectedSavedSearchPinned ? '取消固定' : visibleSavedSearchPins.length >= 3 ? '已固定 3 项' : '固定到快捷区' }}
               </button>
+              <div v-if="selectedSavedSearchPinned && visibleSavedSearchPins.length > 1" class="saved-search-order" role="group" aria-label="调整固定搜索顺序">
+                <button type="button" class="search-clear" :disabled="savingSearch || selectedSavedSearchPinIndex <= 0" @click="moveSavedSearchPin(-1)">往前移</button>
+                <button type="button" class="search-clear" :disabled="savingSearch || selectedSavedSearchPinIndex >= visibleSavedSearchPins.length - 1" @click="moveSavedSearchPin(1)">往后移</button>
+              </div>
               <button v-if="savedSearchId !== null" type="button" class="search-clear" :disabled="savingSearch"
                 @click="removeSavedSearch">移除常用搜索</button>
               <button v-if="activeView !== 'trash' && !showSavedSearchForm && (activeKeyword || selectedCategory || selectedTag || calendarVisible || appliedDateFrom || appliedDateTo || activeView !== 'library')"
@@ -6421,6 +6436,7 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
 .saved-search-preview { flex-basis: 100%; color: var(--note-muted); font-size: 12px; overflow-wrap: anywhere; }
 .quick-saved-searches button { max-width: min(180px, 100%); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .quick-saved-searches button[aria-pressed="true"] { background: #efe2c8; color: #654719; }
+.saved-search-order { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 </style>
 <style scoped>
 .draft-continue-button { background: #f4ead6; color: #76511c; cursor: pointer; }

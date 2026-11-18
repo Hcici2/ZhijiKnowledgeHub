@@ -112,4 +112,16 @@ assert.equal(withPins.quickSavedSearches.value[0].id, 3)
 withPins.savedSearchId.value = 3
 withPins.toggleSavedSearchPin()
 assert.equal(withPins.quickSavedSearches.value[0].id, 4)
+await state.applySavedSearch(4)
+state.toggleSavedSearchPin()
+state.moveSavedSearchPin(-1)
+assert.deepEqual(state.visibleSavedSearchPins.value, [4, 3])
+state.moveSavedSearchPin(-1)
+assert.deepEqual(state.visibleSavedSearchPins.value, [4, 3])
+const reordered = load('../src/App.vue')
+reordered.savedSearches.value = [...state.savedSearches.value]
+assert.deepEqual(reordered.quickSavedSearches.value.map(search => search.id).slice(0, 2), [4, 3])
+reordered.savedSearchId.value = 4
+reordered.moveSavedSearchPin(1)
+assert.deepEqual(reordered.visibleSavedSearchPins.value, [3, 4])
 console.log('PASS: reader actions, filter reset and saved search shortcuts')
