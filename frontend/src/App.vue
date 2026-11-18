@@ -87,7 +87,10 @@ async function downloadRecords() {
 }
 async function downloadFile(path: string, fallback: string) {
   const response = await recordsRequest(path)
-  if (!response.ok) throw new Error()
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}))
+    throw new Error(typeof result.detail === 'string' ? result.detail : '下载失败，请重试。')
+  }
   const url = URL.createObjectURL(await response.blob())
   const link = document.createElement('a')
   const filename = response.headers.get('Content-Disposition')?.split("filename*=UTF-8''")[1]
@@ -1374,6 +1377,7 @@ const attachmentTrashVisible = ref(false)
 const selectedAttachmentIds = ref<string[]>([])
 const attachmentBatchMode = ref(false)
 const attachmentActionBusy = ref(false)
+const attachmentDownloadBusy = ref(false)
 const attachmentActionMessage = ref('')
 const linkedAttachmentsError = ref('')
 const attachmentQuery = ref('')
@@ -1520,6 +1524,26 @@ const visibleSelectedAttachments = computed(() =>
 const allVisibleAttachmentsSelected = computed(() =>
   visibleAttachments.value.length > 0 && visibleSelectedAttachments.value.length === visibleAttachments.value.length
 )
+async function downloadSelectedAttachments() {
+  const files = visibleSelectedAttachments.value
+  if (attachmentDownloadBusy.value || !files.length) return
+  if (files.length > 50 || files.reduce((total, file) => total + file.size, 0) > 250 * 1024 * 1024) {
+    attachmentActionMessage.value = '每次最多下载 50 个文件、合计 250 MB，请分批选择。'
+    return
+  }
+  attachmentDownloadBusy.value = true
+  attachmentActionMessage.value = '正在打包所选附件…'
+  try {
+    const query = new URLSearchParams()
+    files.forEach(file => query.append('ids', file.id))
+    await downloadFile('/api/attachments/download?' + query, '知己附件.zip')
+    attachmentActionMessage.value = '已生成 ZIP，浏览器已开始下载。'
+  } catch (error) {
+    attachmentActionMessage.value = error instanceof Error ? error.message : '下载失败，请重试。'
+  } finally {
+    attachmentDownloadBusy.value = false
+  }
+}
 function toggleAllAttachments() {
   selectedAttachmentIds.value = allVisibleAttachmentsSelected.value ? [] : visibleAttachments.value.map(file => file.id)
 }
@@ -3269,7 +3293,10 @@ onUnmounted(() => {
               <button type="button" class="search-clear" :disabled="attachmentActionBusy || !visibleSelectedAttachments.length" @click="changeAttachmentsTrash(visibleSelectedAttachments, 'restore')">恢复所选</button>
               <button type="button" class="search-clear" :disabled="attachmentActionBusy || !visibleSelectedAttachments.length" @click="changeAttachmentsTrash(visibleSelectedAttachments, 'purge')">永久删除所选</button>
             </template>
-            <button v-else type="button" class="search-clear" :disabled="attachmentActionBusy || !visibleSelectedAttachments.length" @click="changeAttachmentsTrash(visibleSelectedAttachments, 'trash')">移入回收站</button>
+            <template v-else>
+              <button type="button" class="search-clear" :disabled="attachmentActionBusy || attachmentDownloadBusy || !visibleSelectedAttachments.length" @click="downloadSelectedAttachments">下载所选 ZIP</button>
+              <button type="button" class="search-clear" :disabled="attachmentActionBusy || attachmentDownloadBusy || !visibleSelectedAttachments.length" @click="changeAttachmentsTrash(visibleSelectedAttachments, 'trash')">移入回收站</button>
+            </template>
           </div>
           <p v-if="libraryAttachmentsLoading" role="status" class="section-description">正在读取附件…</p>
           <p v-else-if="libraryAttachmentsError" role="alert" class="search-error">{{ libraryAttachmentsError }}</p>

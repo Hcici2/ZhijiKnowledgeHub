@@ -163,6 +163,20 @@ trash_attachment(second['id'])
 purge_attachment(second['id'])
 assert not (original_root / stored_name(second)).exists()
 assert not list_files(trash=True)['attachments']
+duplicate = complete(upload(Body(), 'example.pdf'))
+download_selected = endpoint('/api/attachments/download', 'GET')
+archive = download_selected([first['id'], duplicate['id'], first['id']])
+with ZipFile(archive.path) as downloaded:
+    assert downloaded.namelist() == ['example.pdf', 'example (2).pdf']
+    assert downloaded.read('example.pdf') == downloaded.read('example (2).pdf') == b'example bytes'
+archive.background.func()
+trash_attachment(duplicate['id'])
+try:
+    download_selected([first['id'], duplicate['id']])
+except HTTPException as error:
+    assert error.status_code == 404
+else:
+    raise AssertionError('trashed attachment was included in archive')
 '''
             result = subprocess.run([sys.executable, '-X', 'utf8', '-c', program], cwd=folder,
                                     capture_output=True, text=True, encoding='utf-8', timeout=30)

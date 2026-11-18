@@ -332,3 +332,20 @@ assert.equal(state.visibleAttachments.value[0].size, 50)
 state.attachmentQuery.value = '会议'
 assert.deepEqual(state.visibleAttachments.value.map(file => file.name), ['文件10.pdf'])
 assert.match(state.attachmentDateLabel(state.visibleAttachments.value[0]), /^上传于 .*2026/)
+state.attachmentQuery.value = ''
+state.attachmentLibrary.value = [standalone, linked]
+state.toggleAllAttachments()
+const originalDocument = globalThis.document
+const downloadLink = { click() { this.clicked = true } }
+globalThis.document = { createElement() { return downloadLink } }
+globalThis.fetch = async url => {
+  assert.deepEqual(new URL(url, 'http://localhost').searchParams.getAll('ids').sort(), [standalone.id, linked.id].sort())
+  return new Response(new Blob(['zip']))
+}
+try {
+  await state.downloadSelectedAttachments()
+  assert.equal(downloadLink.download, '知己附件.zip')
+  assert.equal(downloadLink.clicked, true)
+} finally {
+  globalThis.document = originalDocument
+}

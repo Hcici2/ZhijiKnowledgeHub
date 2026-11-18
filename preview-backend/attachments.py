@@ -19,6 +19,7 @@ from starlette.background import BackgroundTask
 
 
 MAX_BYTES = 250 * 1024 * 1024
+MAX_ZIP_FILES = 50
 PREVIEW_TYPES = {
     '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
     '.gif': 'image/gif', '.webp': 'image/webp', '.pdf': 'application/pdf',
@@ -133,6 +134,52 @@ def attachment_router(get_db, require_session, data_dir, db_path):
                 WHERE {filters} ORDER BY COALESCE(a.trashed_at, a.created_at) DESC, a.id DESC""",
                 (record_id,) if record_id is not None else ()).fetchall()
         return {'attachments': [dict(row) for row in rows]}
+
+    @router.get('/attachments/download')
+    def download_selected(ids: list[str] = Query(...)):
+        keys = list(dict.fromkeys(ids))
+        if not keys or len(keys) > MAX_ZIP_FILES or any(not re.fullmatch(r'[a-f0-9]{32}', key) for key in keys):
+            raise HTTPException(400, '请选择 1 到 50 个有效附件。')
+        folder = tempfile.TemporaryDirectory(dir=data_dir)
+        archive_path = Path(folder.name) / 'selected.zip'
+        try:
+            with lock, get_db() as conn:
+                markers = ','.join('?' for _ in keys)
+                rows = {row['id']: row for row in conn.execute(
+                    f'SELECT * FROM attachments WHERE trashed_at IS NULL AND id IN ({markers})', keys
+                )}
+                if len(rows) != len(keys):
+                    raise HTTPException(404, '有附件已移入回收站或不存在，请刷新后重新选择。')
+                if sum(row['size'] for row in rows.values()) > MAX_BYTES:
+                    raise HTTPException(413, '每次最多下载 250 MB，请分批选择。')
+                directory = root(conn)
+                used = set()
+                with ZipFile(archive_path, 'w') as archive:
+                    for key in keys:
+                        row = rows[key]
+                        source = stored_file(directory, row)
+                        if source.stat().st_size != row['size']:
+                            raise OSError('attachment size mismatch')
+                        name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', row['name']).strip(' .') or '附件'
+                        extension = Path(name).suffix
+                        stem = name[:-len(extension)] if extension else name
+                        if re.fullmatch(r'(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])', stem.split('.')[0], re.I):
+                            stem = '_' + stem
+                        candidate = stem + extension
+                        counter = 2
+                        while candidate.casefold() in used:
+                            candidate = f'{stem} ({counter}){extension}'
+                            counter += 1
+                        used.add(candidate.casefold())
+                        archive.write(source, candidate)
+        except HTTPException:
+            folder.cleanup()
+            raise
+        except OSError as error:
+            folder.cleanup()
+            raise HTTPException(409, '无法打包附件，请检查文件和磁盘空间。') from error
+        return FileResponse(archive_path, media_type='application/zip', filename='知己附件.zip',
+                            background=BackgroundTask(folder.cleanup))
 
     @router.post('/attachments/{key}/trash')
     def trash_file(key: str):
