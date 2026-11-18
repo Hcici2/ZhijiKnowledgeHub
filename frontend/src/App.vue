@@ -496,6 +496,7 @@ function openView(view: RecordView, noteFilter?: { day: string } | { category: s
   savedSearchId.value = null
   activeView.value = view
   attachmentTrashVisible.value = view === 'trash' && showAttachmentTrash
+  clearAttachmentDates()
   selectedAttachmentIds.value = []
   attachmentBatchMode.value = false
   if (view !== 'library') libraryMode.value = 'list'
@@ -1383,6 +1384,21 @@ const linkedAttachmentsError = ref('')
 const attachmentQuery = ref('')
 const attachmentKind = ref('')
 const attachmentSort = ref<'newest' | 'oldest' | 'name' | 'size'>('newest')
+const attachmentDateFrom = ref('')
+const attachmentDateTo = ref('')
+const attachmentDateInvalid = computed(() =>
+  Boolean(attachmentDateFrom.value && attachmentDateTo.value && attachmentDateFrom.value > attachmentDateTo.value)
+)
+function clearAttachmentDates() {
+  attachmentDateFrom.value = ''
+  attachmentDateTo.value = ''
+}
+function filterAttachmentsLastWeek() {
+  const today = new Date()
+  attachmentDateTo.value = localDateKey(today)
+  today.setDate(today.getDate() - 6)
+  attachmentDateFrom.value = localDateKey(today)
+}
 const onlyUnlinkedAttachments = ref(false)
 const attachmentStoragePath = ref('')
 const attachmentDefaultPath = ref('')
@@ -1424,11 +1440,22 @@ function attachmentDateLabel(file: NoteAttachment) {
   if (!Number.isFinite(timestamp)) return ''
   return (attachmentTrashVisible.value ? '删除于 ' : '上传于 ') + attachmentDateFormat.format(timestamp)
 }
+function matchesAttachmentDates(file: NoteAttachment) {
+  if (attachmentDateInvalid.value) return false
+  const from = attachmentDateFrom.value
+  const to = attachmentDateTo.value
+  if (!from && !to) return true
+  const timestamp = attachmentTimestamp(attachmentTrashVisible.value ? file.trashed_at : file.created_at)
+  if (!Number.isFinite(timestamp)) return false
+  const day = localDateKey(new Date(timestamp))
+  return (!from || day >= from) && (!to || day <= to)
+}
 const visibleAttachments = computed(() => {
   const query = attachmentQuery.value.trim().toLowerCase()
   const files = attachmentLibrary.value.filter(file =>
     (attachmentTrashVisible.value || !onlyUnlinkedAttachments.value || !file.record_id) &&
     (!attachmentKind.value || attachmentType(file.name) === attachmentKind.value) &&
+    matchesAttachmentDates(file) &&
     [file.name, file.record_title].some(value => value?.toLowerCase().includes(query))
   )
   if (attachmentSort.value === 'name') return files.sort((a, b) => attachmentNameOrder.compare(a.name, b.name))
@@ -3306,6 +3333,17 @@ onUnmounted(() => {
             </select>
             <label v-if="!attachmentTrashVisible" class="section-description"><input v-model="onlyUnlinkedAttachments" type="checkbox" /> 只看未关联</label>
           </div>
+          <div class="settings-fields attachment-filters" role="group" :aria-label="attachmentTrashVisible ? '按删除日期筛选' : '按上传日期筛选'">
+            <label class="section-description">{{ attachmentTrashVisible ? '删除起日' : '上传起日' }}
+              <input v-model="attachmentDateFrom" type="date" class="category-filter" :max="attachmentDateTo || undefined" />
+            </label>
+            <label class="section-description">{{ attachmentTrashVisible ? '删除止日' : '上传止日' }}
+              <input v-model="attachmentDateTo" type="date" class="category-filter" :min="attachmentDateFrom || undefined" />
+            </label>
+            <button type="button" class="search-clear" @click="filterAttachmentsLastWeek">最近 7 天</button>
+            <button v-if="attachmentDateFrom || attachmentDateTo" type="button" class="search-clear" @click="clearAttachmentDates">清除日期</button>
+          </div>
+          <p v-if="attachmentDateInvalid" class="search-error" role="alert">起始日期必须早于或等于结束日期。</p>
           <p v-if="attachmentActionMessage" role="status" class="section-description">{{ attachmentActionMessage }}</p>
           <div v-if="(attachmentTrashVisible || attachmentBatchMode) && !libraryAttachmentsLoading && !libraryAttachmentsError && visibleAttachments.length" class="settings-fields attachment-filters">
             <button type="button" class="search-clear" :disabled="attachmentActionBusy" @click="toggleAllAttachments">{{ allVisibleAttachmentsSelected ? '取消全选' : '全选' }}</button>

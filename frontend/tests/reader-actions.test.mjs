@@ -373,3 +373,19 @@ confirmed = true
 await state.detachNoteAttachment(record.id, linked)
 assert.deepEqual(state.linkedAttachments.value, [])
 assert.equal(state.attachmentLibrary.value[0].record_id, null)
+state.attachmentLibrary.value = [
+  { ...standalone, created_at: '2026-11-10T12:00:00Z', trashed_at: '2026-11-20T12:00:00Z' },
+  { ...linked, created_at: '2026-10-10T12:00:00Z', trashed_at: '2026-12-02T12:00:00Z' },
+]
+state.attachmentDateFrom.value = '2026-11-01'
+state.attachmentDateTo.value = '2026-11-30'
+assert.deepEqual(state.visibleAttachments.value.map(file => file.id), [standalone.id])
+state.attachmentTrashVisible.value = true
+state.attachmentDateFrom.value = '2026-12-01'
+state.attachmentDateTo.value = '2026-12-31'
+assert.deepEqual(state.visibleAttachments.value.map(file => file.id), [linked.id])
+state.attachmentDateTo.value = '2026-11-30'
+assert.equal(state.attachmentDateInvalid.value, true)
+assert.deepEqual(state.visibleAttachments.value, [])
+state.clearAttachmentDates()
+assert.equal(state.visibleAttachments.value.length, 2)

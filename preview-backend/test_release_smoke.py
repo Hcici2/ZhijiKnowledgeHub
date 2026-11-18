@@ -26,19 +26,21 @@ class ReleaseSmokeTest(unittest.TestCase):
             shutil.copytree(dist, isolated / 'frontend' / 'dist')
             log_path = isolated / 'server.log'
             with log_path.open('wb') as log:
+                # Launch the underlying interpreter directly so Windows venv
+                # launchers cannot leave a child holding the temporary directory.
+                startup = (
+                    f'import sys; sys.path[:0] = {[str(backend), *filter(None, sys.path)]!r}; '
+                    "import uvicorn; uvicorn.run('main:app', host='127.0.0.1', port=0)"
+                )
                 server = subprocess.Popen(
-                    [sys.executable, '-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '0'],
-                    cwd=backend, stdout=log, stderr=subprocess.STDOUT,
+                    [sys._base_executable, '-c', startup],
+                    stdout=log, stderr=subprocess.STDOUT,
                 )
                 try:
                     self.check_release(server, log_path)
                 finally:
                     if server.poll() is None:
-                        if sys.platform == 'win32':
-                            subprocess.run(['taskkill', '/PID', str(server.pid), '/T', '/F'],
-                                           capture_output=True, timeout=10, check=True)
-                        else:
-                            server.terminate()
+                        server.terminate()
                     server.wait(timeout=10)
 
     def check_release(self, server, log_path):
