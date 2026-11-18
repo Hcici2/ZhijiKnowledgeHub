@@ -300,21 +300,36 @@ interface SavedSearch {
 const savedSearches = ref<SavedSearch[]>([])
 const savedSearchId = ref<number | null>(null)
 const savedSearchRecencyKey = 'zhiji-saved-search-recency-v1'
-function readSavedSearchRecency(): number[] {
+const savedSearchPinsKey = 'zhiji-saved-search-pins-v1'
+function readSavedSearchIds(key: string, limit: number): number[] {
   try {
-    const value: unknown = JSON.parse(localStorage.getItem(savedSearchRecencyKey) ?? '[]')
-    if (Array.isArray(value)) return [...new Set(value.filter((id): id is number => Number.isSafeInteger(id) && id > 0))].slice(0, 20)
+    const value: unknown = JSON.parse(localStorage.getItem(key) ?? '[]')
+    if (Array.isArray(value)) return [...new Set(value.filter((id): id is number => Number.isSafeInteger(id) && id > 0))].slice(0, limit)
   } catch { /* Browser storage is optional. */ }
   return []
 }
-const savedSearchRecency = ref(readSavedSearchRecency())
+const savedSearchRecency = ref(readSavedSearchIds(savedSearchRecencyKey, 20))
+const savedSearchPins = ref(readSavedSearchIds(savedSearchPinsKey, 3))
+const visibleSavedSearchPins = computed(() => savedSearchPins.value.filter(id => savedSearches.value.some(search => search.id === id)))
+const selectedSavedSearchPinned = computed(() => savedSearchId.value !== null && visibleSavedSearchPins.value.includes(savedSearchId.value))
+function updateSavedSearchPins(ids: number[]) {
+  savedSearchPins.value = ids
+  try { localStorage.setItem(savedSearchPinsKey, JSON.stringify(ids)) } catch { /* Keep the current session pins. */ }
+}
+function toggleSavedSearchPin() {
+  const id = savedSearchId.value
+  if (id === null || !savedSearches.value.some(search => search.id === id)) return
+  const pins = visibleSavedSearchPins.value
+  if (pins.includes(id)) updateSavedSearchPins(pins.filter(pin => pin !== id))
+  else if (pins.length < 3) updateSavedSearchPins([...pins, id])
+}
 function updateSavedSearchRecency(ids: number[]) {
   savedSearchRecency.value = ids.slice(0, 20)
   try { localStorage.setItem(savedSearchRecencyKey, JSON.stringify(savedSearchRecency.value)) } catch { /* Keep the current session order. */ }
 }
 const quickSavedSearches = computed(() => {
   const byId = new Map(savedSearches.value.map(search => [search.id, search]))
-  const ids = new Set([...savedSearchRecency.value, ...savedSearches.value.map(search => search.id).reverse()])
+  const ids = new Set([...visibleSavedSearchPins.value, ...savedSearchRecency.value, ...savedSearches.value.map(search => search.id).reverse()])
   return [...ids].map(id => byId.get(id)).filter((search): search is SavedSearch => search !== undefined).slice(0, 3)
 })
 const savedSearchName = ref('')
@@ -430,6 +445,7 @@ async function removeSavedSearch() {
     if (!response.ok && response.status !== 404) throw new Error()
     savedSearches.value = savedSearches.value.filter(item => item.id !== id)
     updateSavedSearchRecency(savedSearchRecency.value.filter(used => used !== id))
+    updateSavedSearchPins(savedSearchPins.value.filter(pin => pin !== id))
     if (savedSearchId.value === id) savedSearchId.value = null
   } catch {
     if (authState.value === 'ready') savedSearchError.value = '无法移除常用搜索，请重试。'
@@ -3047,7 +3063,7 @@ onUnmounted(() => {
               <span class="section-description">常用搜索</span>
               <button v-for="search in quickSavedSearches" :key="search.id" type="button" class="record-tag tag-filter"
                 :title="search.name" :aria-pressed="savedSearchId === search.id" :disabled="batchMoveBusy || batchBusy"
-                @click="applySavedSearch(search.id)">{{ search.name }}</button>
+                @click="applySavedSearch(search.id)"><AppIcon v-if="visibleSavedSearchPins.includes(search.id)" name="pinned" :size="13" /> {{ search.name }}</button>
             </div>
             <div class="saved-searches">
               <select v-if="savedSearches.length" v-model="savedSearchId" class="category-filter"
@@ -3055,6 +3071,10 @@ onUnmounted(() => {
                 <option :value="null">常用搜索</option>
                 <option v-for="search in savedSearches" :key="search.id" :value="search.id">{{ search.name }}</option>
               </select>
+              <button v-if="savedSearchId !== null" type="button" class="search-clear" :aria-pressed="selectedSavedSearchPinned"
+                :disabled="savingSearch || (!selectedSavedSearchPinned && visibleSavedSearchPins.length >= 3)" @click="toggleSavedSearchPin">
+                {{ selectedSavedSearchPinned ? '取消固定' : visibleSavedSearchPins.length >= 3 ? '已固定 3 项' : '固定到快捷区' }}
+              </button>
               <button v-if="savedSearchId !== null" type="button" class="search-clear" :disabled="savingSearch"
                 @click="removeSavedSearch">移除常用搜索</button>
               <button v-if="activeView !== 'trash' && !showSavedSearchForm && (activeKeyword || selectedCategory || selectedTag || calendarVisible || appliedDateFrom || appliedDateTo || activeView !== 'library')"

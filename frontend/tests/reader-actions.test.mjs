@@ -101,4 +101,15 @@ reloaded.savedSearches.value = [...state.savedSearches.value]
 assert.deepEqual(reloaded.quickSavedSearches.value.map(search => search.id), [2, 1, 4])
 reloaded.savedSearches.value = reloaded.savedSearches.value.filter(search => search.id !== 2)
 assert.deepEqual(reloaded.quickSavedSearches.value.map(search => search.id), [1, 4, 3])
+await state.applySavedSearch(3)
+state.toggleSavedSearchPin()
+await state.applySavedSearch(4)
+assert.equal(state.quickSavedSearches.value[0].id, 3)
+const withPins = load('../src/App.vue')
+withPins.savedSearches.value = [...state.savedSearches.value]
+assert.deepEqual(withPins.visibleSavedSearchPins.value, [3])
+assert.equal(withPins.quickSavedSearches.value[0].id, 3)
+withPins.savedSearchId.value = 3
+withPins.toggleSavedSearchPin()
+assert.equal(withPins.quickSavedSearches.value[0].id, 4)
 console.log('PASS: reader actions, filter reset and saved search shortcuts')
