@@ -9,7 +9,7 @@ import TaskEditor from './components/TaskEditor.vue'
 import WritingPreview from './components/WritingPreview.vue'
 import FormattedEditor from './components/FormattedEditor.vue'
 import AppIcon from './components/AppIcon.vue'
-import { reviewMarkdown } from './reviewExport'
+import { reviewMarkdown, reviewPlainText } from './reviewExport'
 import CaptureTemplates from './components/CaptureTemplates.vue'
 
 interface ApiRecord {
@@ -869,20 +869,24 @@ async function editDailyReview() {
   reviewBody.value?.focus()
 }
 
-async function copyDailyReview() {
+async function copyDailyReview(markdown = false) {
+  const content = dailyReviewSaved.value[selectedDay.value] ?? ''
+  const text = markdown ? reviewMarkdown(selectedDay.value, content)?.text : plainNoteText(content)
+  if (text === undefined) return
   try {
-    await navigator.clipboard.writeText(plainNoteText(dailyReviewSaved.value[selectedDay.value] ?? ''))
-    dailyReviewStatus.value = '已复制回顾。'
+    await navigator.clipboard.writeText(text)
+    dailyReviewStatus.value = markdown ? '已复制 Markdown。' : '已复制回顾纯文本。'
   } catch {
     dailyReviewStatus.value = '无法访问剪贴板，可选中文字手动复制。'
   }
 }
 
-function downloadDailyReview() {
-  const review = reviewMarkdown(selectedDay.value, dailyReviewSaved.value[selectedDay.value] ?? '')
+function downloadDailyReview(format: 'markdown' | 'text') {
+  const content = dailyReviewSaved.value[selectedDay.value] ?? ''
+  const review = format === 'markdown' ? reviewMarkdown(selectedDay.value, content) : reviewPlainText(selectedDay.value, plainNoteText(content))
   if (!review) return
   try {
-    const url = URL.createObjectURL(new Blob([review.text], { type: 'text/markdown;charset=utf-8' }))
+    const url = URL.createObjectURL(new Blob([review.text], { type: `text/${format === 'markdown' ? 'markdown' : 'plain'};charset=utf-8` }))
     try {
       const link = document.createElement('a')
       link.href = url
@@ -891,7 +895,7 @@ function downloadDailyReview() {
     } finally {
       setTimeout(() => URL.revokeObjectURL(url), 1000)
     }
-    dailyReviewStatus.value = '已发起 Markdown 下载。'
+    dailyReviewStatus.value = format === 'markdown' ? '已发起 Markdown 下载。' : '已发起纯文本下载。'
   } catch {
     dailyReviewStatus.value = '无法下载回顾，请重试。'
   }
@@ -1884,6 +1888,10 @@ function closeMoreMenu(event: Event) {
   if (!(menu instanceof HTMLDetailsElement) || !menu.open) return
   menu.open = false
   if (event instanceof KeyboardEvent) menu.querySelector('summary')?.focus()
+}
+
+function closeReviewExportAfterAction(event: MouseEvent) {
+  if (event.target instanceof Element && event.target.closest('button')) closeMoreMenu(event)
 }
 
 function allowReaderDismissal() {
@@ -3184,8 +3192,16 @@ onUnmounted(() => {
         </div>
         <div v-if="!showReviewEditor && canEditDailyReview" class="capture-footer review-reading-footer">
           <span class="compose-word-count" role="status">{{ dailyReviewStatus || (Array.from(dailyReviewSaved[selectedDay] ?? '').length + ' 字符') }}</span>
-          <button type="button" class="search-clear" @click="copyDailyReview">复制回顾</button>
-          <button type="button" class="search-clear" @click="downloadDailyReview">下载 Markdown</button>
+          <details class="note-share-menu record-more review-export-menu" @keydown.esc.stop.prevent="closeMoreMenu"
+            @click="closeReviewExportAfterAction">
+            <summary class="search-clear">复制与下载</summary>
+            <div class="record-more-actions">
+              <button type="button" @click="copyDailyReview()">复制纯文本</button>
+              <button type="button" @click="copyDailyReview(true)">复制 Markdown</button>
+              <button type="button" @click="downloadDailyReview('markdown')">下载 Markdown</button>
+              <button type="button" @click="downloadDailyReview('text')">下载纯文本</button>
+            </div>
+          </details>
           <button type="button" class="search-clear" @click="reviewToNote">转为笔记</button>
           <button type="button" class="search-submit" @click="editDailyReview">编辑回顾</button>
         </div>
@@ -6268,6 +6284,10 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
 .review-entry:hover { background: #f3ecdc; }
 .review-reading { min-height: 0; max-height: 60dvh; overflow-y: auto; overscroll-behavior-y: contain; padding: 16px 2px; line-height: 1.85; }
 .review-reading-footer { flex-shrink: 0; }
+.review-export-menu { position: relative; }
+.review-export-menu > summary { list-style: none; display: flex; align-items: center; cursor: pointer; }
+.review-export-menu > summary::-webkit-details-marker { display: none; }
+.review-export-menu .record-more-actions { top: auto; bottom: calc(100% + 6px); }
 .review-outline-menu { margin-top: 7px; }
 .review-outline-menu summary { width: fit-content; }
 .review-outline-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px; border: 1px solid var(--note-border); border-radius: 8px; font-size: 13px; }
