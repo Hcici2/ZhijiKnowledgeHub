@@ -1,6 +1,9 @@
 /*
 !/.gitignore
 !/AGENTS.md
+!/README.md
+!/Start-Zhiji.cmd
+!/LICENSE
 !/frontend/
 !/preview-backend/
 /frontend/*
