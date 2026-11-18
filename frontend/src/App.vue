@@ -1524,9 +1524,8 @@ const visibleSelectedAttachments = computed(() =>
 const allVisibleAttachmentsSelected = computed(() =>
   visibleAttachments.value.length > 0 && visibleSelectedAttachments.value.length === visibleAttachments.value.length
 )
-async function downloadSelectedAttachments() {
-  const files = visibleSelectedAttachments.value
-  if (attachmentDownloadBusy.value || !files.length) return
+async function downloadAttachmentsZip(files: NoteAttachment[]) {
+  if (attachmentDownloadBusy.value || attachmentActionBusy.value || !files.length) return
   if (files.length > 50 || files.reduce((total, file) => total + file.size, 0) > 250 * 1024 * 1024) {
     attachmentActionMessage.value = '每次最多下载 50 个文件、合计 250 MB，请分批选择。'
     return
@@ -3294,7 +3293,7 @@ onUnmounted(() => {
               <button type="button" class="search-clear" :disabled="attachmentActionBusy || !visibleSelectedAttachments.length" @click="changeAttachmentsTrash(visibleSelectedAttachments, 'purge')">永久删除所选</button>
             </template>
             <template v-else>
-              <button type="button" class="search-clear" :disabled="attachmentActionBusy || attachmentDownloadBusy || !visibleSelectedAttachments.length" @click="downloadSelectedAttachments">下载所选 ZIP</button>
+              <button type="button" class="search-clear" :disabled="attachmentActionBusy || attachmentDownloadBusy || !visibleSelectedAttachments.length" @click="downloadAttachmentsZip(visibleSelectedAttachments)">下载所选 ZIP</button>
               <button type="button" class="search-clear" :disabled="attachmentActionBusy || attachmentDownloadBusy || !visibleSelectedAttachments.length" @click="changeAttachmentsTrash(visibleSelectedAttachments, 'trash')">移入回收站</button>
             </template>
           </div>
@@ -4162,7 +4161,11 @@ onUnmounted(() => {
             </article>
 
             <section v-if="linkedAttachments.length || linkedAttachmentsError || attachmentActionMessage" class="note-attachment-section" aria-label="笔记附件">
-              <h3>附件</h3>
+              <div class="note-attachment-heading">
+                <h3>附件 <span v-if="linkedAttachments.length" class="section-description">（{{ linkedAttachments.length }}）</span></h3>
+                <button v-if="linkedAttachments.length" type="button" class="search-clear"
+                  :disabled="attachmentDownloadBusy || attachmentActionBusy" @click="downloadAttachmentsZip(linkedAttachments)">下载全部附件 ZIP</button>
+              </div>
               <p v-if="linkedAttachmentsError" class="section-description">{{ linkedAttachmentsError }}</p>
               <p v-if="attachmentActionMessage" class="section-description" role="status">{{ attachmentActionMessage }}</p>
               <ul v-if="linkedAttachments.length" class="attachment-list">
@@ -4170,7 +4173,7 @@ onUnmounted(() => {
                   <span class="attachment-file-info">{{ file.name }}</span>
                   <a v-if="!attachmentInlineKind(file.name) && attachmentCanPreview(file.name)" class="note-toolbar-text" :href="attachmentUrl(file, true)" target="_blank" rel="noopener">预览</a>
                   <a class="note-toolbar-text" :href="attachmentUrl(file)" :download="file.name">下载</a>
-                  <button type="button" class="note-toolbar-text" :disabled="attachmentActionBusy" @click="changeAttachmentTrash(file, 'trash')">删除</button>
+                  <button type="button" class="note-toolbar-text" :disabled="attachmentActionBusy || attachmentDownloadBusy" @click="changeAttachmentTrash(file, 'trash')">删除</button>
                   <AttachmentPreview v-if="attachmentInlineKind(file.name)" :kind="attachmentInlineKind(file.name)" :name="file.name" :src="attachmentUrl(file, true)" />
                 </li>
               </ul>
@@ -7041,4 +7044,5 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
 .attachment-filters { margin-bottom: 12px; }
 .note-attachment-section { margin-bottom: 16px; }
 .note-attachment-section h3 { font-size: 15px; margin-bottom: 4px; }
+.note-attachment-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 </style>

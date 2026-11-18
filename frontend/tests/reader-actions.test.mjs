@@ -343,9 +343,18 @@ globalThis.fetch = async url => {
   return new Response(new Blob(['zip']))
 }
 try {
-  await state.downloadSelectedAttachments()
+  await state.downloadAttachmentsZip(state.visibleSelectedAttachments.value)
   assert.equal(downloadLink.download, '知己附件.zip')
   assert.equal(downloadLink.clicked, true)
+  state.selectedAttachmentIds.value = []
+  state.linkedAttachments.value = [standalone, linked]
+  downloadLink.clicked = false
+  await state.downloadAttachmentsZip(state.linkedAttachments.value)
+  assert.equal(downloadLink.clicked, true)
+  downloadLink.clicked = false
+  await state.downloadAttachmentsZip([{ ...standalone, size: 251 * 1024 * 1024 }])
+  assert.equal(downloadLink.clicked, false)
+  assert.match(state.attachmentActionMessage.value, /250 MB/)
 } finally {
   globalThis.document = originalDocument
 }
