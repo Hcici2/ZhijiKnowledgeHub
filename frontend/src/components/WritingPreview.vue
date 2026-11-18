@@ -43,6 +43,6 @@ const lines = computed(() => {
 .writing-preview h2 { font-size: 1.25em; margin: .65em 0 .25em; }
 .writing-preview p { margin: 0; }
 .writing-preview [data-heading] { scroll-margin-top: 110px; }
-.writing-preview blockquote { margin: 0; border-inline-start: 3px solid #c8b48d; padding-inline-start: 10px; color: #6e5d44; }
-.marker { display: inline-block; min-width: 20px; color: #846236; }
+.writing-preview blockquote { margin: 0; border-inline-start: 2px solid var(--zh-accent); padding: 4px 10px; color: var(--zh-muted); background: var(--zh-field); }
+.marker { display: inline-block; min-width: 20px; color: var(--zh-muted); }
 </style>

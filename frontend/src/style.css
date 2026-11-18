@@ -1,19 +1,21 @@
 /* Shared base: one typography and focus system for every surface. */
 :root {
-  --zh-bg: #f6f5f2;
-  --zh-panel: #fffdf9;
-  --zh-field: #f9f7f1;
-  --zh-ink: #302b23;
-  --zh-muted: #6d6253;
-  --zh-border: #e7e0d3;
-  --zh-accent: #916322;
-  --zh-focus: #a56d19;
+  --zh-bg: #f7f7f5;
+  --zh-panel: #fdfdfc;
+  --zh-sidebar: #f1f1ef;
+  --zh-field: #f4f4f2;
+  --zh-ink: #242628;
+  --zh-muted: #626368;
+  --zh-border: #dededb;
+  --zh-accent: #745a76;
+  --zh-selected: #eee8ee;
+  --zh-focus: #745a76;
   --zh-radius-sm: 8px;
   --zh-radius-md: 12px;
   --zh-gap-sm: 8px;
   --zh-gap-md: 12px;
-  --zh-control-height: 38px;
-  --zh-overlay-shadow: 0 12px 36px #302b2326, 0 2px 6px #302b2312;
+  --zh-control-height: 36px;
+  --zh-overlay-shadow: 0 12px 36px #24262820, 0 2px 6px #24262810;
   font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
   font-size: 14px;
   line-height: 1.6;

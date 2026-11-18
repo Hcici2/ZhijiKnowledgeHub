@@ -1,6 +1,7 @@
 <script setup lang="ts">
 withDefaults(defineProps<{ name: string, size?: number }>(), { size: 20 })
 const paths: Record<string, string> = {
+  sidebar: 'M3 5h18v14H3z M9 5v14',
   inbox: 'M4 4h16v16H4z M4 13h5l2 3h2l2-3h5',
   attachments: 'M20 11l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8',
   library: 'M4 4h6v16H4z M14 4l5-1 3 16-5 1z M4 8h6 M4 16h6',

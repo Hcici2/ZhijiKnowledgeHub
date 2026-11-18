@@ -2262,6 +2262,31 @@ const readerHost = ref<HTMLElement | null>(null)
 const detailOpen = ref(false)
 const wideScreen = ref(false)
 const splitReader = computed(() => wideScreen.value && detailOpen.value && !calendarVisible.value && activeView.value !== 'settings' && activeView.value !== 'tasks' && activeView.value !== 'attachments')
+const coreSplit = computed(() => splitReader.value && activeView.value === 'library')
+const sidebarCollapsed = ref(false)
+const libraryPaneWidth = ref(380)
+
+function setLibraryPaneWidth(width: number, available: number) {
+  const max = Math.max(280, Math.min(540, Math.floor(available * .47)))
+  libraryPaneWidth.value = Math.round(Math.max(280, Math.min(width, max)))
+}
+
+function dragLibraryDivider(event: PointerEvent) {
+  const divider = event.currentTarget as HTMLElement
+  if (!divider.hasPointerCapture(event.pointerId) || !divider.parentElement) return
+  const bounds = divider.parentElement.getBoundingClientRect()
+  setLibraryPaneWidth(event.clientX - bounds.left, bounds.width)
+}
+
+function resizeLibraryWithKey(event: KeyboardEvent) {
+  const divider = event.currentTarget as HTMLElement
+  if (!divider.parentElement || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+  event.preventDefault()
+  const current = divider.getBoundingClientRect().left - divider.parentElement.getBoundingClientRect().left
+  const width = event.key === 'Home' ? 280 : event.key === 'End' ? 540 :
+    current + (event.key === 'ArrowLeft' ? -12 : 12)
+  setLibraryPaneWidth(width, divider.parentElement.clientWidth)
+}
 const showNoteLinks = ref(false)
 const linkedRecord = ref<KnowledgeRecord | null>(null)
 
@@ -3190,9 +3215,9 @@ onUnmounted(() => {
       </form>
     </section>
   </main>
-  <div v-else class="app-shell" :class="{ 'compact-records': listDensity === 'compact' }">
+  <div v-else class="app-shell" :class="{ 'compact-records': listDensity === 'compact', 'sidebar-collapsed': sidebarCollapsed, 'core-reading': coreSplit }">
     <!-- 左侧导航栏 -->
-    <aside class="sidebar">
+    <aside id="workspace-navigation" class="sidebar">
       <div class="brand">
         <img class="brand-logo" :src="bookIcon" alt="" />
         <div>
@@ -3225,9 +3250,14 @@ onUnmounted(() => {
     <main class="main-area">
       <header class="topbar">
         <div class="breadcrumb">
+          <button type="button" class="note-icon-button sidebar-toggle" :aria-label="sidebarCollapsed ? '展开侧栏' : '折叠侧栏'"
+            aria-controls="workspace-navigation" :aria-expanded="!sidebarCollapsed" @click="sidebarCollapsed = !sidebarCollapsed">
+            <AppIcon name="sidebar" :size="18" />
+          </button>
           我的空间 <span>/</span> {{ viewDetails.label }}
         </div>
         <div class="topbar-right">
+          <div id="workspace-primary-actions" />
           <span v-if="isDevelopmentPreview" class="preview-label">开发预览</span>
           <button class="search-clear" :disabled="authBusy" @click="resetAuthForm(); changingPassword = !changingPassword">
             {{ changingPassword ? '取消修改' : '修改密码' }}
@@ -3565,7 +3595,9 @@ onUnmounted(() => {
           </div>
         </section>
 
-        <div v-else class="note-workspace" :class="{ 'is-split': splitReader }" :style="splitReader && editingId !== null && editWindowWidth ? { gridTemplateColumns: 'minmax(336px, 1fr) clamp(350px, ' + editWindowWidth + 'px, calc(100% - 352px))' } : undefined" @click.self="splitReader && closeActiveReader()">
+        <div v-else class="note-workspace" :class="{ 'is-split': splitReader, 'core-split': coreSplit }"
+          :style="coreSplit ? { '--library-pane-width': libraryPaneWidth + 'px', '--editor-pane-width': editingId !== null && editWindowWidth ? editWindowWidth + 'px' : undefined } : splitReader && editingId !== null && editWindowWidth ? { gridTemplateColumns: 'minmax(336px, 1fr) clamp(350px, ' + editWindowWidth + 'px, calc(100% - 352px))' } : undefined"
+          @click.self="splitReader && closeActiveReader()">
         <section class="recent-card library-card" :class="{ 'library-list-card': !calendarVisible }">
           <div class="recent-heading">
             <div class="library-heading">
@@ -3576,6 +3608,7 @@ onUnmounted(() => {
               <button type="button" :aria-pressed="!calendarVisible" @click="changeLibraryMode('list')">列表</button>
               <button type="button" :aria-pressed="calendarVisible" @click="changeLibraryMode('calendar')">日历</button>
             </div>
+            <Teleport defer to="#workspace-primary-actions" :disabled="!coreSplit">
             <div v-if="activeView !== 'trash'" class="library-actions">
               <details class="export-menu" @keydown.esc.stop="closeMoreMenu">
                 <summary class="search-clear">导出</summary>
@@ -3602,6 +3635,7 @@ onUnmounted(() => {
                 <AppIcon name="plus" :size="18" />{{ hasCaptureDraft || hasStoredCaptureDraft ? '继续草稿' : calendarVisible ? '记在这一天' : '新建笔记' }}
               </button>
             </div>
+            </Teleport>
           </div>
           <p v-if="exportError" class="search-error" role="alert">{{ exportError }}</p>
           <button v-if="activeView === 'trash'" type="button" class="search-clear" @click="openView('settings')">
@@ -3692,7 +3726,12 @@ onUnmounted(() => {
               </button>
             </form>
 
-            <button type="button" class="search-clear advanced-filters-toggle" :aria-expanded="datesOpen" aria-controls="advanced-library-filters" @click="datesOpen = !datesOpen">高级筛选</button>
+            <div class="library-secondary-tools">
+              <DateRangePicker v-if="!calendarVisible" v-model:from="dateFromInput" v-model:to="dateToInput"
+                label="笔记日期范围" :error="dateError" @apply="applyDates"
+                @preset="$event === 'week' ? filterLastSevenDays() : filterDatePreset($event)" />
+              <button type="button" class="search-clear advanced-filters-toggle" :aria-expanded="datesOpen" aria-controls="advanced-library-filters" @click="datesOpen = !datesOpen">高级筛选</button>
+            </div>
             <div v-show="datesOpen" id="advanced-library-filters" class="advanced-library-filters">
             <div v-if="!calendarVisible && (appliedDateFrom || appliedDateTo)" class="date-filter">
               <span v-if="appliedDateFrom || appliedDateTo" class="search-result-tip">
@@ -3700,9 +3739,6 @@ onUnmounted(() => {
               </span>
               <button v-if="appliedDateFrom || appliedDateTo" type="button" class="search-clear" @click="clearDates">清除日期</button>
             </div>
-            <DateRangePicker v-if="!calendarVisible" v-model:from="dateFromInput" v-model:to="dateToInput"
-              label="笔记日期范围" :error="dateError" @apply="applyDates"
-              @preset="$event === 'week' ? filterLastSevenDays() : filterDatePreset($event)" />
             <div v-if="quickSavedSearches.length" class="saved-searches quick-saved-searches" aria-label="常用搜索快捷入口">
               <span class="section-description">常用搜索</span>
               <button v-for="search in quickSavedSearches" :key="search.id" type="button" class="record-tag tag-filter"
@@ -3919,6 +3955,10 @@ onUnmounted(() => {
             </div>
           </div>
         </section>
+        <div v-if="coreSplit" class="library-divider" role="separator" tabindex="0" aria-label="调整笔记列表宽度"
+          aria-orientation="vertical" :aria-valuenow="libraryPaneWidth" :aria-valuemin="280" :aria-valuemax="540"
+          @pointerdown="($event.currentTarget as HTMLElement).setPointerCapture($event.pointerId)"
+          @pointermove="dragLibraryDivider" @keydown="resizeLibraryWithKey" />
         <aside v-show="splitReader" ref="readerHost" class="note-detail-dialog split-note-reader" aria-label="笔记阅读区"></aside>
         </div>
       </div>
@@ -4311,7 +4351,7 @@ onUnmounted(() => {
                 <button type="button" class="note-toolbar-text" :disabled="!readerMatchCount" @click="moveReaderMatch(1)">下一处</button>
                 <button type="button" class="note-toolbar-text" @click="closeReaderFind">关闭</button>
               </div>
-              <div v-if="readerFindOpen || readerOutline.length || linkedRecord.content !== linkedRecord.title" ref="readerText" class="linked-content" :style="{ fontSize: readingPreferences.size + 'px', lineHeight: readingPreferences.spacious ? '1.95' : '1.6' }"><WritingPreview v-if="!readerQuery.trim()" :text="linkedRecord.content" /><template v-else v-for="(part, index) in readerChunks" :key="index"><span v-if="part.anchor !== undefined" :data-heading="part.anchor" tabindex="-1"></span><mark v-else-if="part.match >= 0" :data-current-match="part.match === readerMatch ? '' : undefined">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></div>
+              <div v-if="readerFindOpen || readerOutline.length || linkedRecord.content !== linkedRecord.title" ref="readerText" class="linked-content" :style="{ fontSize: readingPreferences.size + 'px', lineHeight: readingPreferences.spacious ? '1.75' : '1.6' }"><WritingPreview v-if="!readerQuery.trim()" :text="linkedRecord.content" /><template v-else v-for="(part, index) in readerChunks" :key="index"><span v-if="part.anchor !== undefined" :data-heading="part.anchor" tabindex="-1"></span><mark v-else-if="part.match >= 0" :data-current-match="part.match === readerMatch ? '' : undefined">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></div>
               <a v-if="linkedRecord.url" class="note-web-link" :href="linkedRecord.url" target="_blank"
                 rel="noopener noreferrer">打开网站 ↗</a>
               <p v-if="recordActionStatus" class="search-result-tip" role="status">{{ recordActionStatus }}</p>
@@ -7240,3 +7280,5 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
   .library-filters .search-submit { grid-column: 1 / -1; }
 }
 </style>
+
+<style scoped src="./workspace.css"></style>

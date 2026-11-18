@@ -8,8 +8,9 @@ const props = defineProps<{
   counting?: boolean
   error?: boolean
   itemLabel?: string
+  rangePicker?: boolean
 }>()
-const emit = defineEmits<{ select: [day: string], today: [] }>()
+const emit = defineEmits<{ select: [day: string], today: [], navigate: [day: string] }>()
 
 const weekdays = ['一', '二', '三', '四', '五', '六', '日']
 const year = computed(() => Number(props.selectedDay.slice(0, 4)))
@@ -46,7 +47,8 @@ function selectMonth(value: number, selectedMonth: number) {
   if (value < minYear || value > maxYear) return
   if (value === year.value && selectedMonth === month.value) return
   const key = String(value).padStart(4, '0') + '-' + String(selectedMonth).padStart(2, '0') + '-01'
-  emit('select', key)
+  if (props.rangePicker) emit('navigate', key)
+  else emit('select', key)
 }
 
 function moveMonth(delta: number) {

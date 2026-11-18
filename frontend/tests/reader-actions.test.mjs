@@ -433,6 +433,12 @@ await state.filterDatePreset('all')
 assert.equal(state.appliedDateFrom.value, '')
 await state.filterDatePreset('month-days', new Date(2026, 2, 2, 12))
 assert.equal(state.appliedDateFrom.value, '2026-02-01')
+state.setLibraryPaneWidth(100, 1000)
+assert.equal(state.libraryPaneWidth.value, 280)
+state.setLibraryPaneWidth(800, 1000)
+assert.equal(state.libraryPaneWidth.value, 470)
+state.setLibraryPaneWidth(380, 1000)
+assert.equal(state.libraryPaneWidth.value, 380)
 assert.equal(state.appliedDateTo.value, '2026-03-02')
 state.dateFromInput.value = '2026-03-04'
 state.dateToInput.value = '2026-03-01'
