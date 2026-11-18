@@ -6,6 +6,7 @@
 /frontend/*
 !/frontend/src/
 !/frontend/public/
+!/frontend/tests/
 !/frontend/index.html
 !/frontend/package.json
 !/frontend/package-lock.json

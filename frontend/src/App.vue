@@ -9,6 +9,7 @@ import TaskEditor from './components/TaskEditor.vue'
 import WritingPreview from './components/WritingPreview.vue'
 import FormattedEditor from './components/FormattedEditor.vue'
 import AppIcon from './components/AppIcon.vue'
+import { reviewMarkdown } from './reviewExport'
 import CaptureTemplates from './components/CaptureTemplates.vue'
 
 interface ApiRecord {
@@ -874,6 +875,25 @@ async function copyDailyReview() {
     dailyReviewStatus.value = '已复制回顾。'
   } catch {
     dailyReviewStatus.value = '无法访问剪贴板，可选中文字手动复制。'
+  }
+}
+
+function downloadDailyReview() {
+  const review = reviewMarkdown(selectedDay.value, dailyReviewSaved.value[selectedDay.value] ?? '')
+  if (!review) return
+  try {
+    const url = URL.createObjectURL(new Blob([review.text], { type: 'text/markdown;charset=utf-8' }))
+    try {
+      const link = document.createElement('a')
+      link.href = url
+      link.download = review.filename
+      link.click()
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    }
+    dailyReviewStatus.value = '已发起 Markdown 下载。'
+  } catch {
+    dailyReviewStatus.value = '无法下载回顾，请重试。'
   }
 }
 
@@ -3165,6 +3185,7 @@ onUnmounted(() => {
         <div v-if="!showReviewEditor && canEditDailyReview" class="capture-footer review-reading-footer">
           <span class="compose-word-count" role="status">{{ dailyReviewStatus || (Array.from(dailyReviewSaved[selectedDay] ?? '').length + ' 字符') }}</span>
           <button type="button" class="search-clear" @click="copyDailyReview">复制回顾</button>
+          <button type="button" class="search-clear" @click="downloadDailyReview">下载 Markdown</button>
           <button type="button" class="search-clear" @click="reviewToNote">转为笔记</button>
           <button type="button" class="search-submit" @click="editDailyReview">编辑回顾</button>
         </div>
