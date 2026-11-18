@@ -1,5 +1,6 @@
 /*
 !/.gitignore
+!/AGENTS.md
 !/frontend/
 !/preview-backend/
 /frontend/*
