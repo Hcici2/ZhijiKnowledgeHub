@@ -301,6 +301,23 @@ const savedSearches = ref<SavedSearch[]>([])
 const savedSearchId = ref<number | null>(null)
 const savedSearchName = ref('')
 const showSavedSearchForm = ref(false)
+const savedSearchNameInput = ref<HTMLInputElement | null>(null)
+
+const savedSearchPreview = computed(() => [
+  '范围：' + viewDetails.value.label,
+  ...activeLibraryFilters.value.map(filter => filter.label),
+  ...(calendarVisible.value ? ['日期：' + selectedDay.value] : []),
+])
+
+async function openSavedSearchForm() {
+  const parts = [activeKeyword.value, selectedTag.value, selectedCategory.value ? categoryLabel(selectedCategory.value) : ''].filter(Boolean)
+  if (!parts.length) parts.push(calendarVisible.value ? selectedDay.value : viewDetails.value.label)
+  savedSearchName.value = parts.join(' · ').slice(0, 40).replace(/[\uD800-\uDBFF]$/, '')
+  savedSearchError.value = ''
+  showSavedSearchForm.value = true
+  await nextTick()
+  savedSearchNameInput.value?.select()
+}
 const savedSearchError = ref('')
 const savingSearch = ref(false)
 
@@ -3012,11 +3029,12 @@ onUnmounted(() => {
               <button v-if="savedSearchId !== null" type="button" class="search-clear" :disabled="savingSearch"
                 @click="removeSavedSearch">移除常用搜索</button>
               <button v-if="activeView !== 'trash' && !showSavedSearchForm && (activeKeyword || selectedCategory || selectedTag || calendarVisible || appliedDateFrom || appliedDateTo || activeView !== 'library')"
-                type="button" class="search-clear" @click="showSavedSearchForm = true">保存当前筛选</button>
+                type="button" class="search-clear" @click="openSavedSearchForm">保存当前筛选</button>
             </div>
 
             <form v-if="showSavedSearchForm" class="saved-searches" @submit.prevent="saveCurrentSearch">
-              <input v-model="savedSearchName" aria-label="常用搜索名称" maxlength="40"
+              <span class="saved-search-preview">{{ savedSearchPreview.join(' · ') }}</span>
+              <input ref="savedSearchNameInput" v-model="savedSearchName" aria-label="常用搜索名称" maxlength="40"
                 class="category-filter saved-search-name" placeholder="输入名称，例如工作资料" required />
               <button class="search-submit" :disabled="savingSearch || !savedSearchName.trim()">保存</button>
               <button type="button" class="search-clear" :disabled="savingSearch"
@@ -6351,6 +6369,7 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
 .reader-meta-filter:hover { background: #eee2ca; }
 .active-library-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-block: 6px; color: var(--note-muted); font-size: 12px; }
 .active-library-filters .record-tag { max-width: 100%; overflow-wrap: anywhere; }
+.saved-search-preview { flex-basis: 100%; color: var(--note-muted); font-size: 12px; overflow-wrap: anywhere; }
 </style>
 <style scoped>
 .draft-continue-button { background: #f4ead6; color: #76511c; cursor: pointer; }
