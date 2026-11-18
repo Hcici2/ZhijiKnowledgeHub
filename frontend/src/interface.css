@@ -1,0 +1,106 @@
+/* Zhiji / quiet workspace. Final visual layer; geometry and behavior stay in App.vue. */
+.app-shell, .auth-screen {
+  --note-border: #e8e5de;
+  --note-field: #f8f7f4;
+  --note-ink: #292825;
+  --note-muted: #77746d;
+  font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: 0;
+  color: var(--note-ink);
+  background: #f6f5f2;
+}
+.main-area { background: #f6f5f2; }
+.sidebar { background: #eeede8; border-right: 1px solid #e3e1da; padding-top: 24px; }
+.brand { border-bottom: 0; padding-bottom: 24px; margin-bottom: 6px; gap: 11px; }
+.brand-logo { width: 38px; height: 38px; border-radius: 10px; }
+.brand-name { font-size: 21px; font-weight: 650; letter-spacing: .08em; }
+.brand-subtitle { color: #77746d; font-size: 11px; letter-spacing: .03em; }
+.nav-caption { color: #79766e; font-size: 11px; letter-spacing: .06em; padding-bottom: 12px; }
+.nav-item { min-height: 44px; border-radius: 9px; gap: 12px; color: #5c5a53; margin-bottom: 4px; }
+.nav-item .nav-icon { color: #77746d; width: 19px; height: 19px; }
+.nav-item.active { background: #fff; color: #49391e; box-shadow: 0 1px 3px #2928250a; font-weight: 600; }
+.nav-item.active .nav-icon { color: #9a6b23; }
+.view-button:hover:not(.active) { background: #e5e3dc; }
+.nav-item[aria-label="回收站"] { margin-top: 18px; }
+.sidebar-footnote { margin-top: auto; padding: 30px 12px 4px; font-size: 11px; color: #817d74; letter-spacing: .06em; }
+.topbar { min-height: 64px; background: #f6f5f2; border-bottom: 1px solid #e8e5de; padding-inline: 30px; }
+.breadcrumb { color: #77746d; font-size: 12px; }
+.breadcrumb span { color: #aaa69c; }
+.topbar .search-clear { background: transparent; border-color: transparent; color: #69665e; min-height: 36px; }
+.preview-label { background: #eeede8; color: #77746d; border: 0; font-size: 11px; }
+.content { max-width: 1160px; padding: 30px clamp(18px, 3vw, 40px); }
+.recent-card, .auth-card, .capture-card { background: #fff; border: 1px solid #e8e5de; border-radius: 16px; box-shadow: 0 3px 16px #29282504; }
+.recent-card { padding: clamp(20px, 3vw, 32px); }
+.recent-heading { align-items: center; gap: 16px; margin-bottom: 24px; }
+.library-heading h1, .settings-page > h1 { font-size: 26px; line-height: 1.35; letter-spacing: -.025em; font-weight: 650; }
+.section-description, .search-result-tip { color: #77746d; font-size: 12px; line-height: 1.7; }
+.library-actions { gap: 8px; }
+.search-submit, .submit-button, .save-button { background: #96651f; border-color: #96651f; color: #fff; box-shadow: 0 1px 2px #3d291316; font-weight: 600; }
+.search-submit:hover:not(:disabled), .submit-button:hover:not(:disabled), .save-button:hover:not(:disabled) { background: #7e5216; }
+.new-note-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.search-clear, .record-action-button, .cancel-button { background: #fff; border-color: #e5e2da; color: #676258; }
+.search-clear:hover:not(:disabled), .record-action-button:hover:not(:disabled) { background: #f5f3ee; }
+.search-submit, .search-clear, .category-filter, .new-note-button { min-height: 40px; font-size: 13px; border-radius: 9px; }
+.search-input-wrap { background: #f7f6f3; border-color: #e9e6df; border-radius: 9px; min-height: 42px; }
+.search-input-wrap input { font: inherit; font-size: 14px; color: #3c3933; }
+.search-input-wrap input::placeholder { color: #858077; }
+.search-icon { color: #817c72; }
+.category-filter, .record-title-input, .edit-form textarea, .tag-row input { background: #faf9f7; border-color: #e5e2da; color: #38352f; }
+.library-filters { padding-bottom: 16px; border-bottom: 1px solid #eeece6; }
+.library-segment { background: #f0eee9; padding: 4px; border-radius: 10px; }
+.library-segment button { min-height: 34px; color: #777168; }
+.library-segment button[aria-pressed="true"] { background: #fff; color: #4e4536; box-shadow: 0 1px 4px #29282510; }
+.record-item { padding: 21px 12px; border-radius: 10px; border-bottom: 1px solid #eeece7; background: transparent; box-shadow: none; gap: 14px; }
+.record-item:hover, .record-item:focus-within { background: #faf9f6; }
+.record-item.record-pinned { background: #fdfaf3; box-shadow: inset 2px 0 #d7b777; }
+.record-item.record-selected { background: #f6edda; box-shadow: inset 3px 0 #b68b43; }
+.record-item .record-icon { width: 34px; height: 38px; border: 0; border-radius: 8px; background: #f4f2ed; color: #a18c66; display: grid; place-items: center; }
+.record-item .record-title-link { font-size: 16px; font-weight: 600; line-height: 1.5; color: #302e28; letter-spacing: 0; }
+.record-item .record-excerpt { font-size: 14px; line-height: 1.75; color: #78736a; margin-top: 5px; }
+.record-item .record-meta { margin-top: 12px; gap: 8px; align-items: center; color: #817b71; font-size: 12px; }
+.record-category, .record-tag { padding: 2px 7px; border: 0; border-radius: 5px; background: #f1efe9; color: #716650; font-size: 12px; font-weight: 400; }
+.note-icon-button, .note-reader-toolbar .note-icon-button { width: 36px; min-height: 36px; border-radius: 8px; background: transparent; color: #817b70; border-color: transparent; display: inline-grid; place-items: center; }
+.note-icon-button:hover, .note-reader-toolbar .note-icon-button:hover { color: #76511c; background: #eee8db; }
+.record-more-actions, .export-menu .export-controls { background: #fff; border: 1px solid #e8e4da; border-radius: 12px; box-shadow: 0 8px 28px #29282518, 0 2px 6px #29282508; padding: 8px; }
+.record-more-actions button { min-height: 38px; border-radius: 7px; font-size: 13px; }
+.note-detail-dialog { background: #fff; border-color: #e5e1d7; box-shadow: 0 16px 60px #29282524; }
+.note-reader-toolbar { background: #fcfbf8; border-color: #ede9e0; padding: 10px 18px; }
+.note-reader-toolbar h2 { color: #81796d; letter-spacing: .04em; font-weight: 500; }
+.note-paper { padding-block: 34px; }
+.note-paper .note-detail-title { font-size: clamp(24px, 2.5vw, 30px); font-weight: 650; line-height: 1.5; letter-spacing: 0; color: #292825; }
+.note-paper .note-detail-meta { margin-top: 12px; gap: 8px; color: #81796d; }
+.note-paper .linked-content { max-width: 68ch; color: #45413b; font-size: 16px; line-height: 1.95; letter-spacing: .01em; }
+.note-reader-footer { border-color: #ede9e0; padding-top: 16px; }
+.note-links-panel, .suggestion-panel { background: #f8f6f1; border-color: #e8e2d6; }
+.note-toolbar-text { color: #796346; font-weight: 500; }
+.note-toolbar-text.note-edit-action { background: #f0e6d2; color: #72511f; }
+.split-note-reader { box-shadow: 0 3px 12px #29282506; }
+.settings-section { padding-block: 24px; border-color: #eeebe4; }
+.settings-section h2 { font-size: 17px; font-weight: 600; margin-bottom: 12px; }
+.task-overview { background: #f8f7f3; border-color: #ece8df; border-radius: 12px; }
+.task-overview strong { font-size: 28px; font-variant-numeric: tabular-nums; font-weight: 600; }
+.task-row { padding: 17px 8px; border-color: #eeebe5; gap: 10px; }
+.task-check { font-size: 15px; line-height: 1.65; }
+.task-meta { gap: 8px; color: #80776a; }
+.task-batch-bar { background: #faf7ef; border-color: #e8dfcd; }
+.empty-state { padding-block: 64px; color: #898174; font-size: 14px; line-height: 1.8; }
+.app-shell :deep(.calendar) { background: #faf9f6; border-color: #e8e4da; border-radius: 13px; }
+.app-shell :deep(.calendar-day) { background: #f0eee8; border-radius: 10px; }
+.app-shell :deep(.calendar-day.calendar-selected) { background: #ede0c6; color: #735121; }
+.app-shell :deep(.month-picker) { background: #fff; border-color: #e8e4da; }
+.app-shell :deep(.category-picker input), .app-shell :deep(.category-picker select) { font-size: 14px; }
+.note-icon-button, .nav-item, .search-clear, .search-submit { transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease; }
+.note-detail-dialog::backdrop, .links-dialog::backdrop { background: #29282545; backdrop-filter: blur(3px); }
+@media (max-width: 760px) {
+  .content { padding: 18px 14px; }
+  .topbar { padding-inline: 16px; }
+  .recent-card { padding: 20px 16px; }
+  .recent-heading { gap: 12px; margin-bottom: 18px; }
+  .record-item { padding-inline: 4px; gap: 10px; }
+  .sidebar-footnote { display: none; }
+  .note-paper { padding-block: 24px; }
+  .note-icon-button { min-height: 40px; width: 40px; }
+  .library-heading h1 { font-size: 23px; }
+}

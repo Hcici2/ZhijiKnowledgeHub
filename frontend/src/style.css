@@ -1,0 +1,26 @@
+/* Shared base: one typography and focus system for every surface. */
+:root {
+  font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #292825;
+  background: #f6f5f2;
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+#app { width: 100%; min-height: 100svh; }
+button, input, textarea, select { font-family: inherit; }
+button, summary, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid #a56d19; outline-offset: 3px; }
+button:disabled { cursor: not-allowed; }
+h1, h2, h3 { color: #292825; font-family: inherit; letter-spacing: 0; }
+h1, h2 { margin: 0 0 12px; }
+p { margin: 0; }
+::selection { background: #f3dfb2; color: #312713; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; scroll-behavior: auto !important; }
+}
