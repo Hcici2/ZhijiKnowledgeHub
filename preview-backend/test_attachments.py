@@ -103,6 +103,7 @@ trash_attachment = endpoint('/api/attachments/{key}/trash', 'POST')
 restore_attachment = endpoint('/api/attachments/{key}/restore', 'POST')
 purge_attachment = endpoint('/api/attachments/{key}', 'DELETE')
 trash_attachment(second['id'])
+assert Path(serve(second['id'], trash=True).path).read_bytes() == b'example bytes'
 assert len(list_files(note['id'])['attachments']) == 1
 assert list_files(trash=True)['attachments'][0]['id'] == second['id']
 assert migrate(StorageLocation(path=str(destination)))['cleanup_remaining'] == 0

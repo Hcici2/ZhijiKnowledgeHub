@@ -211,16 +211,32 @@ confirmed = true
 await state.changeAttachmentTrash(trashFile, 'trash')
 assert.deepEqual(state.linkedAttachments.value, [])
 await state.toggleAttachmentTrash()
+assert.equal(state.activeView.value, 'trash')
+assert.equal(state.attachmentTrashVisible.value, true)
+state.attachmentKind.value = ''
+state.attachmentQuery.value = ''
+state.toggleAllTrashAttachments()
+assert.deepEqual(state.selectedTrashAttachments.value, ['abc'])
+assert.equal(state.attachmentUrl(trashFile, true, true), '/api/attachments/abc/file?preview=true&trash=true')
 confirmed = false
-await state.changeAttachmentTrash(trashFile, 'purge')
+await state.changeAttachmentsTrash(state.visibleSelectedAttachments.value, 'purge')
 assert.equal(state.attachmentLibrary.value.length, 1)
 confirmed = true
 await state.changeAttachmentTrash(trashFile, 'purge')
 assert.equal(state.attachmentLibrary.value.length, 0)
+assert.deepEqual(state.selectedTrashAttachments.value, [])
 assert.deepEqual(attachmentCalls, [
   ['/api/attachments/abc/trash', 'POST'],
   ['/api/attachments?trash=true', undefined],
   ['/api/attachments/abc', 'DELETE'],
 ])
 assert.match(confirmations.at(-1), /无法恢复/)
+state.attachmentLibrary.value = [trashFile, { id: 'def', name: '文档.pdf' }]
+state.toggleAllTrashAttachments()
+await state.changeAttachmentsTrash(state.visibleSelectedAttachments.value, 'restore')
+assert.deepEqual(attachmentCalls.slice(-2), [
+  ['/api/attachments/abc/restore', 'POST'],
+  ['/api/attachments/def/restore', 'POST'],
+])
+assert.equal(state.attachmentLibrary.value.length, 0)
 console.log('PASS: reader actions, filter reset and saved search shortcuts')

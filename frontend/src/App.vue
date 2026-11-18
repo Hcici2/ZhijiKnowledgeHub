@@ -491,6 +491,8 @@ function openView(view: RecordView, noteFilter?: { day: string } | { category: s
   batchStatus.value = ''
   savedSearchId.value = null
   activeView.value = view
+  attachmentTrashVisible.value = view === 'trash' && showAttachmentTrash
+  selectedTrashAttachments.value = []
   if (view !== 'library') libraryMode.value = 'list'
   resetDates()
   currentPage.value = 1
@@ -514,9 +516,8 @@ function openView(view: RecordView, noteFilter?: { day: string } | { category: s
       else selectedTag.value = noteFilter.tag
     }
   }
-  if (view === 'attachments') {
+  if (view === 'attachments' || attachmentTrashVisible.value) {
     ++latestRequest
-    attachmentTrashVisible.value = showAttachmentTrash
     attachmentActionMessage.value = ''
     return loadAttachmentLibrary()
   }
@@ -1362,6 +1363,7 @@ const linkedAttachments = ref<NoteAttachment[]>([])
 const libraryAttachmentsLoading = ref(false)
 const libraryAttachmentsError = ref('')
 const attachmentTrashVisible = ref(false)
+const selectedTrashAttachments = ref<string[]>([])
 const attachmentActionBusy = ref(false)
 const attachmentActionMessage = ref('')
 const linkedAttachmentsError = ref('')
@@ -1401,8 +1403,11 @@ const visibleAttachments = computed(() => attachmentLibrary.value.filter(file =>
   (!attachmentKind.value || attachmentType(file.name) === attachmentKind.value) &&
   file.name.toLowerCase().includes(attachmentQuery.value.trim().toLowerCase())
 ))
-function attachmentUrl(file: NoteAttachment, preview = false) {
-  return '/api/attachments/' + encodeURIComponent(file.id) + '/file' + (preview ? '?preview=true' : '')
+function attachmentUrl(file: NoteAttachment, preview = false, trash = false) {
+  const query = new URLSearchParams()
+  if (preview) query.set('preview', 'true')
+  if (trash) query.set('trash', 'true')
+  return '/api/attachments/' + encodeURIComponent(file.id) + '/file' + (query.size ? '?' + query : '')
 }
 async function attachmentRequest(url: string, options?: RequestInit) {
   const response = await recordsRequest(url, options)
@@ -1458,26 +1463,47 @@ async function loadAttachmentLibrary() {
   } finally { libraryAttachmentsLoading.value = false }
 }
 function toggleAttachmentTrash() {
-  attachmentTrashVisible.value = !attachmentTrashVisible.value
-  attachmentActionMessage.value = ''
-  return loadAttachmentLibrary()
+  return openView('trash', undefined, !attachmentTrashVisible.value)
+}
+const visibleSelectedAttachments = computed(() =>
+  visibleAttachments.value.filter(file => selectedTrashAttachments.value.includes(file.id))
+)
+const allVisibleTrashAttachmentsSelected = computed(() =>
+  visibleAttachments.value.length > 0 && visibleSelectedAttachments.value.length === visibleAttachments.value.length
+)
+function toggleAllTrashAttachments() {
+  selectedTrashAttachments.value = allVisibleTrashAttachmentsSelected.value ? [] : visibleAttachments.value.map(file => file.id)
 }
 async function changeAttachmentTrash(file: NoteAttachment, action: 'trash' | 'restore' | 'purge') {
-  if (attachmentActionBusy.value) return
-  const label = '「' + file.name + '」'
+  return changeAttachmentsTrash([file], action)
+}
+async function changeAttachmentsTrash(files: NoteAttachment[], action: 'trash' | 'restore' | 'purge') {
+  if (attachmentActionBusy.value || !files.length) return
+  const label = files.length === 1 ? '「' + files[0]!.name + '」' : files.length + ' 个附件'
   if (action === 'trash' && !window.confirm('将附件 ' + label + ' 移入回收站？')) return
   if (action === 'purge' && !window.confirm('永久删除附件 ' + label + '？删除后无法恢复。')) return
   attachmentActionBusy.value = true
   attachmentActionMessage.value = ''
   try {
-    const url = '/api/attachments/' + encodeURIComponent(file.id)
-    await attachmentRequest(action === 'purge' ? url : url + '/' + action, { method: action === 'purge' ? 'DELETE' : 'POST' })
-    const remaining = (item: NoteAttachment) => item.id !== file.id
+    const completed = new Set<string>()
+    let failure = ''
+    for (const file of files) {
+      const url = '/api/attachments/' + encodeURIComponent(file.id)
+      try {
+        await attachmentRequest(action === 'purge' ? url : url + '/' + action, { method: action === 'purge' ? 'DELETE' : 'POST' })
+        completed.add(file.id)
+      } catch (error) {
+        failure ||= error instanceof Error ? error.message : '附件操作失败。'
+        if (authState.value !== 'ready') break
+      }
+    }
+    const remaining = (item: NoteAttachment) => !completed.has(item.id)
     attachmentLibrary.value = attachmentLibrary.value.filter(remaining)
     linkedAttachments.value = linkedAttachments.value.filter(remaining)
-    attachmentActionMessage.value = action === 'trash' ? '附件已移入回收站。' : action === 'restore' ? '附件已恢复。' : '附件已永久删除。'
-  } catch (error) {
-    attachmentActionMessage.value = error instanceof Error ? error.message : '附件操作失败。'
+    selectedTrashAttachments.value = selectedTrashAttachments.value.filter(id => !completed.has(id))
+    const verb = action === 'trash' ? '移入回收站' : action === 'restore' ? '恢复' : '永久删除'
+    attachmentActionMessage.value = `已${verb} ${completed.size} 个附件。` +
+      (failure ? ` ${files.length - completed.size} 个未完成。${failure}` : '')
   } finally {
     attachmentActionBusy.value = false
   }
@@ -3152,14 +3178,18 @@ onUnmounted(() => {
         </section>
 
         <!-- 最近记录 -->
-        <section v-else-if="activeView === 'attachments'" class="recent-card attachment-page">
+        <section v-else-if="activeView === 'attachments' || (activeView === 'trash' && attachmentTrashVisible)" class="recent-card attachment-page">
           <header class="recent-heading">
-            <div class="library-heading"><h1>{{ attachmentTrashVisible ? '附件回收站' : '附件库' }}</h1><p class="section-description">{{ visibleAttachments.length }} 个文件</p></div>
+            <div class="library-heading"><h1>{{ attachmentTrashVisible ? '回收站' : '附件库' }}</h1><p class="section-description">{{ visibleAttachments.length }} 个文件</p></div>
             <div class="settings-fields">
-              <button type="button" class="search-clear" :disabled="libraryAttachmentsLoading || attachmentActionBusy" @click="toggleAttachmentTrash">{{ attachmentTrashVisible ? '返回附件库' : '附件回收站' }}</button>
+              <button v-if="!attachmentTrashVisible" type="button" class="search-clear" :disabled="libraryAttachmentsLoading || attachmentActionBusy" @click="toggleAttachmentTrash">附件回收站</button>
               <button type="button" class="search-clear" :disabled="libraryAttachmentsLoading || attachmentActionBusy" @click="loadAttachmentLibrary">刷新</button>
             </div>
           </header>
+          <nav v-if="attachmentTrashVisible" class="settings-fields attachment-filters" aria-label="回收站类型">
+            <button type="button" class="search-clear" :disabled="attachmentActionBusy" @click="openView('trash')">笔记</button>
+            <button type="button" class="search-submit" aria-current="page">附件</button>
+          </nav>
           <div class="settings-fields attachment-filters">
             <input v-model="attachmentQuery" type="search" class="category-filter" aria-label="搜索附件文件名" placeholder="搜索文件名" />
             <select v-model="attachmentKind" class="category-filter" aria-label="附件类型">
@@ -3167,11 +3197,19 @@ onUnmounted(() => {
             </select>
           </div>
           <p v-if="attachmentActionMessage" role="status" class="section-description">{{ attachmentActionMessage }}</p>
+          <div v-if="attachmentTrashVisible && !libraryAttachmentsLoading && !libraryAttachmentsError && visibleAttachments.length" class="settings-fields attachment-filters">
+            <button type="button" class="search-clear" :disabled="attachmentActionBusy" @click="toggleAllTrashAttachments">{{ allVisibleTrashAttachmentsSelected ? '取消全选' : '全选' }}</button>
+            <span class="section-description">已选 {{ visibleSelectedAttachments.length }} 个</span>
+            <button type="button" class="search-clear" :disabled="attachmentActionBusy || !visibleSelectedAttachments.length" @click="changeAttachmentsTrash(visibleSelectedAttachments, 'restore')">恢复所选</button>
+            <button type="button" class="search-clear" :disabled="attachmentActionBusy || !visibleSelectedAttachments.length" @click="changeAttachmentsTrash(visibleSelectedAttachments, 'purge')">永久删除所选</button>
+          </div>
           <p v-if="libraryAttachmentsLoading" role="status" class="section-description">正在读取附件…</p>
           <p v-else-if="libraryAttachmentsError" role="alert" class="search-error">{{ libraryAttachmentsError }}</p>
           <p v-else-if="!visibleAttachments.length" class="empty-state">{{ attachmentLibrary.length ? '没有匹配的附件。' : attachmentTrashVisible ? '附件回收站是空的。' : '还没有附件。新建或编辑笔记时可以添加。' }}</p>
           <ul v-else class="attachment-list">
             <li v-for="file in visibleAttachments" :key="file.id" class="attachment-row">
+              <input v-if="attachmentTrashVisible" v-model="selectedTrashAttachments" type="checkbox" :value="file.id"
+                :aria-label="'选择附件 ' + file.name" :disabled="attachmentActionBusy" />
               <div class="attachment-file-info"><strong>{{ file.name }}</strong>
                 <span class="section-description">{{ attachmentType(file.name) }} · {{ attachmentSize(file.size) }}{{ file.deleted_at ? ' · 来源在回收站' : !file.record_id ? ' · 独立文件' : '' }}</span>
               </div>
@@ -3181,11 +3219,11 @@ onUnmounted(() => {
               </template>
               <template v-else>
                 <button v-if="file.record_id" type="button" class="note-toolbar-text" :title="file.record_title ?? undefined" @click="openSourceNote(file.record_id)">来源笔记</button>
-                <a v-if="!attachmentInlineKind(file.name) && attachmentCanPreview(file.name)" class="note-toolbar-text" :href="attachmentUrl(file, true)" target="_blank" rel="noopener">预览</a>
-                <a class="note-toolbar-text" :href="attachmentUrl(file)" :download="file.name">下载</a>
                 <button type="button" class="note-toolbar-text" :disabled="attachmentActionBusy" @click="changeAttachmentTrash(file, 'trash')">删除</button>
-                <AttachmentPreview v-if="attachmentInlineKind(file.name)" :kind="attachmentInlineKind(file.name)" :name="file.name" :src="attachmentUrl(file, true)" />
               </template>
+              <a v-if="!attachmentInlineKind(file.name) && attachmentCanPreview(file.name)" class="note-toolbar-text" :href="attachmentUrl(file, true, attachmentTrashVisible)" target="_blank" rel="noopener">预览</a>
+              <a class="note-toolbar-text" :href="attachmentUrl(file, false, attachmentTrashVisible)" :download="file.name">下载</a>
+              <AttachmentPreview v-if="attachmentInlineKind(file.name)" :kind="attachmentInlineKind(file.name)" :name="file.name" :src="attachmentUrl(file, true, attachmentTrashVisible)" />
             </li>
           </ul>
         </section>
@@ -3313,7 +3351,10 @@ onUnmounted(() => {
           <button v-if="activeView === 'trash'" type="button" class="search-clear" @click="openView('settings')">
             回收站设置
           </button>
-          <button v-if="activeView === 'trash'" type="button" class="search-clear" @click="openView('attachments', undefined, true)">附件回收站</button>
+          <nav v-if="activeView === 'trash'" class="settings-fields attachment-filters" aria-label="回收站类型">
+            <button type="button" class="search-submit" aria-current="page">笔记</button>
+            <button type="button" class="search-clear" @click="openView('trash', undefined, true)">附件</button>
+          </nav>
           <p v-if="recordActionStatus" class="search-result-tip" role="status">{{ recordActionStatus }}</p>
           <p v-if="recordActionError" class="search-error" role="alert">{{ recordActionError }}</p>
 

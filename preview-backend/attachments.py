@@ -164,9 +164,9 @@ def attachment_router(get_db, require_session, data_dir, db_path):
         return {'success': True}
 
     @router.get('/attachments/{key}/file')
-    def serve_file(key: str, preview: bool = False):
+    def serve_file(key: str, preview: bool = False, trash: bool = False):
         with get_db() as conn:
-            row = conn.execute('SELECT * FROM attachments WHERE id=? AND trashed_at IS NULL', (key,)).fetchone()
+            row = conn.execute('SELECT * FROM attachments WHERE id=? AND (trashed_at IS NOT NULL)=?', (key, trash)).fetchone()
             if not row:
                 raise HTTPException(404, '附件不存在。')
             path = stored_file(root(conn), row)
