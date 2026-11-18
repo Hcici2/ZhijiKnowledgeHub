@@ -138,6 +138,11 @@ function showLogin() {
   captureCategory.value = '待整理'
   captureError.value = ''
   captureDialog.value?.close()
+  captureAttachments.value = []
+  editAttachmentQueue.value = {}
+  attachmentUploadStatus.value = ''
+  attachmentLibrary.value = []
+  linkedAttachments.value = []
   reviewDialog.value?.close()
   exportError.value = ''
   exportScope.value = 'all'
@@ -280,6 +285,7 @@ const views = [
   { id: 'pinned', label: '置顶', icon: '✦', empty: '还没有置顶记录。点击记录上的「置顶」，方便下次找回。' },
   { id: 'recent', label: '最近 7 天', icon: '◷', empty: '最近 7 天还没有记录。' },
   { id: 'trash', label: '回收站', icon: '🗑︎', empty: '回收站是空的。删除的记录会留在这里，随时可以恢复。' },
+  { id: 'attachments', label: '附件库', icon: '▧', empty: '' },
   { id: 'tasks', label: '待办事项', icon: '✓', empty: '' },
   { id: 'settings', label: '设置', icon: '⚙', empty: '' }
 ] as const
@@ -507,13 +513,17 @@ function openView(view: RecordView, noteFilter?: { day: string } | { category: s
       else selectedTag.value = noteFilter.tag
     }
   }
+  if (view === 'attachments') {
+    ++latestRequest
+    return loadAttachmentLibrary()
+  }
   if (view === 'tasks') {
     ++latestRequest
     return loadTasks()
   }
   if (view === 'settings') {
     ++latestRequest
-    return Promise.all([loadTrashPolicy(), loadCategories(), loadSettingsOverview()])
+    return Promise.all([loadTrashPolicy(), loadCategories(), loadSettingsOverview(), loadAttachmentStorage()])
   }
   return view === 'trash'
     ? Promise.all([loadRecords(), loadTrashPolicy()])
@@ -1331,8 +1341,125 @@ function clearLibraryFilters() {
 }
 
 type CaptureDraft = { title: string, category: string, content: string }
+interface NoteAttachment {
+  id: string
+  name: string
+  size: number
+  record_id?: number | null
+  record_title?: string | null
+  deleted_at?: string | null
+}
+const captureAttachments = ref<NoteAttachment[]>([])
+const editAttachmentQueue = ref<Record<number, NoteAttachment[]>>({})
+const attachmentUploadBusy = ref(false)
+const attachmentUploadStatus = ref('')
+const attachedEditFiles = computed(() => editAttachmentQueue.value[editingId.value ?? -1] ?? [])
+const attachmentLibrary = ref<NoteAttachment[]>([])
+const linkedAttachments = ref<NoteAttachment[]>([])
+const libraryAttachmentsLoading = ref(false)
+const libraryAttachmentsError = ref('')
+const linkedAttachmentsError = ref('')
+const attachmentQuery = ref('')
+const attachmentKind = ref('')
+const attachmentStoragePath = ref('')
+const attachmentDefaultPath = ref('')
+const attachmentPathInput = ref('')
+const attachmentStorageBusy = ref(false)
+const attachmentStorageStatus = ref('')
+
+function attachmentType(name: string) {
+  if (/\.(png|jpe?g|gif|webp)$/i.test(name)) return '图片'
+  if (/\.pdf$/i.test(name)) return 'PDF'
+  if (/\.(mp4|webm|mov|mkv|avi|m4v)$/i.test(name)) return '视频'
+  return '其他文件'
+}
+function attachmentCanPreview(name: string) { return /\.(png|jpe?g|gif|webp|pdf|mp4|webm)$/i.test(name) }
+function attachmentSize(size: number) {
+  return size < 1024 ? size + ' B' : size < 1048576 ? (size / 1024).toFixed(1) + ' KB' : (size / 1048576).toFixed(1) + ' MB'
+}
+const visibleAttachments = computed(() => attachmentLibrary.value.filter(file =>
+  (!attachmentKind.value || attachmentType(file.name) === attachmentKind.value) &&
+  file.name.toLowerCase().includes(attachmentQuery.value.trim().toLowerCase())
+))
+function attachmentUrl(file: NoteAttachment, preview = false) {
+  return '/api/attachments/' + encodeURIComponent(file.id) + '/file' + (preview ? '?preview=true' : '')
+}
+async function attachmentRequest(url: string, options?: RequestInit) {
+  const response = await recordsRequest(url, options)
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}))
+    throw new Error(response.status === 404 ? '附件功能暂不可用，请检查存储或重启知己后台。' : typeof result.detail === 'string' ? result.detail : '附件操作失败，请重试。')
+  }
+  return response.json()
+}
+
+async function uploadNoteAttachments(event: Event, noteId: number | null = null) {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files ?? [])
+  input.value = ''
+  if (!files.length || attachmentUploadBusy.value) return
+  const queue = noteId === null ? captureAttachments.value : (editAttachmentQueue.value[noteId] ??= [])
+  if (files.length > 50 - queue.length) {
+    attachmentUploadStatus.value = '一次最多关联 50 个附件，请减少选择。'
+    return
+  }
+  attachmentUploadBusy.value = true
+  const failures: string[] = []
+  try {
+    for (const [index, file] of files.entries()) {
+      if (authState.value !== 'ready') break
+      attachmentUploadStatus.value = '正在上传 ' + (index + 1) + ' / ' + files.length + '：' + file.name
+      try {
+        if (file.size > 250 * 1024 * 1024) throw new Error('超过 250 MB')
+        const uploaded = await attachmentRequest('/api/attachments?name=' + encodeURIComponent(file.name), { method: 'POST', body: file })
+        queue.push(uploaded)
+      } catch (error) {
+        failures.push(file.name + '：' + (error instanceof Error ? error.message : '上传失败'))
+      }
+    }
+    attachmentUploadStatus.value = failures.length ? failures.join('；') : '附件已保存，保存笔记后会完成关联。'
+  } finally {
+    attachmentUploadBusy.value = false
+  }
+}
+
+async function loadAttachmentLibrary() {
+  libraryAttachmentsLoading.value = true
+  libraryAttachmentsError.value = ''
+  try {
+    const result = await attachmentRequest('/api/attachments')
+    if (authState.value === 'ready') attachmentLibrary.value = result.attachments
+  } catch (error) {
+    libraryAttachmentsError.value = error instanceof Error ? error.message : '无法读取附件库。'
+  } finally { libraryAttachmentsLoading.value = false }
+}
+async function loadAttachmentStorage() {
+  attachmentStorageStatus.value = ''
+  try {
+    const result = await attachmentRequest('/api/settings/attachment-storage')
+    attachmentStoragePath.value = attachmentPathInput.value = result.path
+    attachmentDefaultPath.value = result.default_path
+  } catch (error) {
+    attachmentStorageStatus.value = error instanceof Error ? error.message : '无法读取存储设置。'
+  }
+}
+async function changeAttachmentStorage(useDefault = false) {
+  if (attachmentStorageBusy.value || (!useDefault && !attachmentPathInput.value.trim())) return
+  attachmentStorageBusy.value = true
+  attachmentStorageStatus.value = '正在复制和校验附件，请保持窗口打开…'
+  try {
+    const result = await attachmentRequest('/api/settings/attachment-storage', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: useDefault ? '' : attachmentPathInput.value.trim().replace(/^"(.*)"$/, '$1') }),
+    })
+    attachmentStoragePath.value = attachmentPathInput.value = result.path
+    attachmentStorageStatus.value = '已切换到该目录，原目录里的副本仍可用于核对。'
+  } catch (error) {
+    attachmentStorageStatus.value = error instanceof Error ? error.message : '无法更改存储目录。'
+  } finally { attachmentStorageBusy.value = false }
+}
+
 const captureDraftKey = 'zhiji-capture-draft-v1'
-const hasCaptureDraft = computed(() => !!(captureTitle.value.trim() || message.value.trim()))
+const hasCaptureDraft = computed(() => !!(captureTitle.value.trim() || message.value.trim() || captureAttachments.value.length))
 const hasStoredCaptureDraft = ref(false)
 const restoredCaptureDraft = ref(false)
 function clearStoredCaptureDraft() {
@@ -1346,25 +1473,28 @@ function restoreCaptureDraft() {
     const raw = sessionStorage.getItem(captureDraftKey)
     if (!raw) return
     const draft = JSON.parse(raw)
-    if (!draft || typeof draft.title !== 'string' || typeof draft.content !== 'string' || typeof draft.category !== 'string' || !(draft.title.trim() || draft.content.trim())) return
+    if (!draft || typeof draft.title !== 'string' || typeof draft.content !== 'string' || typeof draft.category !== 'string') return
     setCaptureDraft({ title: draft.title, content: draft.content, category: draft.category || '待整理' })
     captureNoteDate.value = typeof draft.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(draft.date) ? draft.date : ''
+    if (Array.isArray(draft.attachments)) captureAttachments.value = draft.attachments.filter((file: NoteAttachment) =>
+      file && typeof file.id === 'string' && /^[a-f0-9]{32}$/.test(file.id) && typeof file.name === 'string' && typeof file.size === 'number').slice(0, 50)
     restoredCaptureDraft.value = true
   } catch { /* A broken or unavailable draft should not prevent writing. */ }
 }
-watch([message, captureTitle, captureCategory, captureNoteDate], () => {
+watch([message, captureTitle, captureCategory, captureNoteDate, captureAttachments], () => {
   if (authState.value !== 'ready') return
   try {
     if (hasCaptureDraft.value) {
-      sessionStorage.setItem(captureDraftKey, JSON.stringify({ ...currentCapture(), date: captureNoteDate.value }))
+      sessionStorage.setItem(captureDraftKey, JSON.stringify({ ...currentCapture(), date: captureNoteDate.value, attachments: captureAttachments.value }))
       hasStoredCaptureDraft.value = true
     }
     else clearStoredCaptureDraft()
   } catch { /* The in-memory draft remains usable. */ }
-})
+}, { deep: true })
 function discardCaptureDraft() {
   if (captureBusy.value || !hasCaptureDraft.value || !window.confirm('放弃这份未保存的笔记草稿？')) return
   setCaptureDraft({ title: '', content: '', category: '待整理' })
+  captureAttachments.value = []
   captureNoteDate.value = calendarVisible.value ? selectedDay.value : ''
   templateUndo.value = null
   templateNotice.value = ''
@@ -1434,7 +1564,7 @@ async function openCapture() {
   restoreCaptureDraft()
   if (captureDateMenu.value) captureDateMenu.value.open = false
   captureError.value = ''
-  if (!message.value.trim() && !captureTitle.value.trim()) {
+  if (!hasCaptureDraft.value) {
     captureNoteDate.value = calendarVisible.value ? selectedDay.value : ''
   }
   if (captureDialog.value && !captureDialog.value.open) captureDialog.value.showModal()
@@ -1448,7 +1578,7 @@ function preventClosingCapture(event: Event) {
 
 async function addRecord() {
   const content = message.value.trim()
-  if (!content || captureBusy.value || templateEditing.value) return
+  if (!content || captureBusy.value || templateEditing.value || attachmentUploadBusy.value) return
 
   const noteDate = captureNoteDate.value || null
   captureBusy.value = true
@@ -1457,11 +1587,13 @@ async function addRecord() {
     const response = await recordsRequest('/api/records', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, title: captureTitle.value.trim(), category: captureCategory.value, note_date: noteDate })
+      body: JSON.stringify({ content, title: captureTitle.value.trim(), category: captureCategory.value, note_date: noteDate, ...(captureAttachments.value.length ? { attachment_ids: captureAttachments.value.map(file => file.id) } : {}) })
     })
     if (!response.ok) throw new Error()
 
     clearStoredCaptureDraft()
+    captureAttachments.value = []
+    attachmentUploadStatus.value = ''
     message.value = ''
     captureTitle.value = ''
     templateUndo.value = null
@@ -1588,7 +1720,7 @@ function discardEditDraft(record: KnowledgeRecord) {
 
 // 保存修改
 async function saveEdit(recordId: number) {
-  if (isSavingEdit.value) return
+  if (isSavingEdit.value || attachmentUploadBusy.value) return
   const content = editContent.value.trim()
 
   if (!content) {
@@ -1613,7 +1745,8 @@ async function saveEdit(recordId: number) {
           title: editTitle.value.trim(),
           note_date: editNoteDate.value || null,
           category: editCategory.value.trim() || '待整理',
-          tags: editTags.value
+          tags: editTags.value,
+          ...(editAttachmentQueue.value[recordId]?.length ? { attachment_ids: editAttachmentQueue.value[recordId]!.map(file => file.id) } : {})
         })
       }
     )
@@ -1624,6 +1757,7 @@ async function saveEdit(recordId: number) {
       throw new Error(data.detail || data.message || '修改失败')
     }
 
+    delete editAttachmentQueue.value[recordId]
     cancelEdit()
     clearEditDraft(recordId)
     const detail = linkedRecord.value?.id === recordId ? loadLinkRecord(recordId) : undefined
@@ -1821,11 +1955,13 @@ const linkDialog = ref<HTMLDialogElement | null>(null)
 const readerHost = ref<HTMLElement | null>(null)
 const detailOpen = ref(false)
 const wideScreen = ref(false)
-const splitReader = computed(() => wideScreen.value && detailOpen.value && activeView.value !== 'settings' && activeView.value !== 'tasks')
+const splitReader = computed(() => wideScreen.value && detailOpen.value && activeView.value !== 'settings' && activeView.value !== 'tasks' && activeView.value !== 'attachments')
 const splitCalendarControls = ref<'calendar' | 'filters' | null>(null)
 watch(splitReader, () => { splitCalendarControls.value = null })
 const showNoteLinks = ref(false)
 const linkedRecord = ref<KnowledgeRecord | null>(null)
+
+
 const readerListIndex = computed(() => records.value.findIndex(record => record.id === linkedRecord.value?.id))
 
 async function browseAdjacentNote(direction: -1 | 1) {
@@ -1982,6 +2118,15 @@ function resetLinkDialog() {
 
 async function loadLinkRecord(id: number, keepVisible = false) {
   const version = ++linkPageVersion
+  linkedAttachments.value = []
+  linkedAttachmentsError.value = ''
+  if (authState.value === 'ready') {
+    void attachmentRequest('/api/attachments?record_id=' + id).then(result => {
+      if (version === linkPageVersion) linkedAttachments.value = result.attachments ?? []
+    }).catch(error => {
+      if (version === linkPageVersion) linkedAttachmentsError.value = error instanceof Error ? error.message : '无法读取附件。'
+    })
+  }
   linkLoading.value = true
   if (!keepVisible) {
     linkedRecord.value = null
@@ -2619,13 +2764,15 @@ async function loadTasks() {
   }
 }
 
-async function openTaskSource(task: NoteTask) {
+async function openTaskSource(task: NoteTask) { return openSourceNote(task.record_id) }
+
+async function openSourceNote(recordId: number) {
   if (detailOpen.value && !allowReaderDismissal()) return
   resetLinkDialog()
   detailOpen.value = true
   const dialog = linkDialog.value
   if (!splitReader.value && dialog && !dialog.open) dialog.showModal()
-  await loadLinkRecord(task.record_id)
+  await loadLinkRecord(recordId)
 }
 
 async function createTaskForNote() {
@@ -2867,11 +3014,26 @@ onUnmounted(() => {
           </section>
 
           <section class="settings-section">
+            <h2>附件存储</h2>
+            <p class="section-description">当前目录：{{ attachmentStoragePath || '正在读取…' }}</p>
+            <form class="settings-fields" @submit.prevent="changeAttachmentStorage()">
+              <label class="attachment-path-field">本地文件夹路径
+                <input v-model="attachmentPathInput" class="category-filter" maxlength="1024" placeholder="例如 D:\知己附件" :disabled="attachmentStorageBusy" />
+              </label>
+              <button class="search-submit" :disabled="attachmentStorageBusy || !attachmentPathInput.trim() || attachmentPathInput.trim() === attachmentStoragePath">迁移并切换</button>
+              <button type="button" class="search-clear" :disabled="attachmentStorageBusy || !attachmentDefaultPath || attachmentDefaultPath === attachmentStoragePath" @click="changeAttachmentStorage(true)">使用默认目录</button>
+            </form>
+            <p class="section-description">可在资源管理器中复制文件夹路径再粘贴。切换前会校验已复制的文件。</p>
+            <p v-if="attachmentStorageStatus" class="search-result-tip" role="status">{{ attachmentStorageStatus }}</p>
+          </section>
+
+          <section class="settings-section">
             <h2>本地备份</h2>
             <p class="section-description">下载含笔记、待办、每日回顾、历史版本和关联的 SQLite 数据库副本。</p>
             <button type="button" class="search-clear" :disabled="backupBusy" @click="downloadDatabaseBackup">
               {{ backupBusy ? '正在生成…' : '下载 SQLite 备份' }}
             </button>
+            <a class="search-clear attachment-action" href="/api/settings/full-backup" target="_blank" rel="noopener">下载笔记与附件 ZIP</a>
             <p v-if="backupMessage" class="search-result-tip" role="status">{{ backupMessage }}</p>
             <p v-if="backupError" class="search-error" role="alert">{{ backupError }}</p>
           </section>
@@ -2892,6 +3054,32 @@ onUnmounted(() => {
         </section>
 
         <!-- 最近记录 -->
+        <section v-else-if="activeView === 'attachments'" class="recent-card attachment-page">
+          <header class="recent-heading">
+            <div class="library-heading"><h1>附件库</h1><p class="section-description">{{ visibleAttachments.length }} 个文件</p></div>
+            <button type="button" class="search-clear" :disabled="libraryAttachmentsLoading" @click="loadAttachmentLibrary">刷新</button>
+          </header>
+          <div class="settings-fields attachment-filters">
+            <input v-model="attachmentQuery" type="search" class="category-filter" aria-label="搜索附件文件名" placeholder="搜索文件名" />
+            <select v-model="attachmentKind" class="category-filter" aria-label="附件类型">
+              <option value="">全部类型</option><option>图片</option><option>PDF</option><option>视频</option><option>其他文件</option>
+            </select>
+          </div>
+          <p v-if="libraryAttachmentsLoading" role="status" class="section-description">正在读取附件…</p>
+          <p v-else-if="libraryAttachmentsError" role="alert" class="search-error">{{ libraryAttachmentsError }}</p>
+          <p v-else-if="!visibleAttachments.length" class="empty-state">{{ attachmentLibrary.length ? '没有匹配的附件。' : '还没有附件。新建或编辑笔记时可以添加。' }}</p>
+          <ul v-else class="attachment-list">
+            <li v-for="file in visibleAttachments" :key="file.id" class="attachment-row">
+              <div class="attachment-file-info"><strong>{{ file.name }}</strong>
+                <span class="section-description">{{ attachmentType(file.name) }} · {{ attachmentSize(file.size) }}{{ file.deleted_at ? ' · 来源在回收站' : !file.record_id ? ' · 独立文件' : '' }}</span>
+              </div>
+              <button v-if="file.record_id" type="button" class="note-toolbar-text" :title="file.record_title ?? undefined" @click="openSourceNote(file.record_id)">来源笔记</button>
+              <a v-if="attachmentCanPreview(file.name)" class="note-toolbar-text" :href="attachmentUrl(file, true)" target="_blank" rel="noopener">预览</a>
+              <a class="note-toolbar-text" :href="attachmentUrl(file)" :download="file.name">下载</a>
+            </li>
+          </ul>
+        </section>
+
         <section v-else-if="activeView === 'tasks'" class="recent-card tasks-page">
           <header class="recent-heading">
             <div class="library-heading">
@@ -3354,6 +3542,18 @@ onUnmounted(() => {
               <button type="button" class="note-toolbar-text" aria-label="查找替换" title="查找替换" :disabled="captureBusy" @click="captureBody?.showReplace()"><AppIcon name="search" :size="18" /></button>
             </div>
             <FormattedEditor ref="captureBody" v-model="message" label="记录正文" :disabled="captureBusy" @shortcut="captureShortcut" @resize-width="captureWindowWidth = $event" />
+            <div class="attachment-editor">
+              <label class="attachment-action search-clear"><AppIcon name="attachments" :size="16" />添加附件
+                <input type="file" multiple aria-label="为新笔记添加附件" :disabled="captureBusy || attachmentUploadBusy" @change="uploadNoteAttachments($event)" />
+              </label>
+              <span v-if="attachmentUploadStatus" class="section-description" role="status">{{ attachmentUploadStatus }}</span>
+              <ul v-if="captureAttachments.length" class="attachment-list queued-attachments">
+                <li v-for="file in captureAttachments" :key="file.id" class="attachment-row">
+                  <span class="attachment-file-info">{{ file.name }}</span>
+                  <button type="button" class="note-toolbar-text" :disabled="captureBusy || attachmentUploadBusy" @click="captureAttachments = captureAttachments.filter(item => item.id !== file.id)">取消关联</button>
+                </li>
+              </ul>
+            </div>
             <div class="capture-footer">
               <div class="compose-meta">
                 <details ref="captureDateMenu" class="capture-date-menu" @keydown.esc.stop.prevent="closeMoreMenu">
@@ -3375,7 +3575,7 @@ onUnmounted(() => {
                 <span v-if="restoredCaptureDraft" class="compose-word-count" role="status">已恢复草稿</span>
               </div>
               <button v-if="hasCaptureDraft" type="button" class="note-toolbar-text" :disabled="captureBusy" @click="discardCaptureDraft">放弃草稿</button>
-              <button class="submit-button" :disabled="!message.trim() || captureBusy">
+              <button class="submit-button" :disabled="!message.trim() || captureBusy || attachmentUploadBusy">
                 {{ captureBusy ? '正在保存…' : '保存记录' }}
               </button>
             </div>
@@ -3615,6 +3815,19 @@ onUnmounted(() => {
             </div>
 
             </details>
+            <div class="attachment-editor">
+              <label class="attachment-action search-clear"><AppIcon name="attachments" :size="16" />添加附件
+                <input type="file" multiple aria-label="为当前笔记添加附件" :disabled="isSavingEdit || attachmentUploadBusy" @change="uploadNoteAttachments($event, linkedRecord.id)" />
+              </label>
+              <span v-if="attachmentUploadStatus" class="section-description" role="status">{{ attachmentUploadStatus }}</span>
+              <ul v-if="attachedEditFiles.length" class="attachment-list queued-attachments">
+                <li v-for="file in attachedEditFiles" :key="file.id" class="attachment-row">
+                  <span class="attachment-file-info">{{ file.name }}</span>
+                  <button type="button" class="note-toolbar-text" :disabled="isSavingEdit || attachmentUploadBusy"
+                    @click="editAttachmentQueue[linkedRecord.id] = attachedEditFiles.filter(item => item.id !== file.id)">取消关联</button>
+                </li>
+              </ul>
+            </div>
             <p v-if="editError" class="edit-error">
               {{ editError }}
             </p>
@@ -3624,7 +3837,7 @@ onUnmounted(() => {
               <button type="button" class="note-toolbar-text" :disabled="isSavingEdit" @click="discardEditDraft(linkedRecord)">放弃草稿</button>
               <button
                 class="save-button"
-                :disabled="isSavingEdit"
+                :disabled="isSavingEdit || attachmentUploadBusy"
                 @click="saveEdit(linkedRecord.id)"
               >
                 {{ isSavingEdit ? '正在保存...' : '保存修改' }}
@@ -3686,6 +3899,17 @@ onUnmounted(() => {
               <p v-if="linkedRecord.deletedAt" class="section-description">恢复这条记录后即可编辑。</p>
             </article>
 
+            <section v-if="linkedAttachments.length || linkedAttachmentsError" class="note-attachment-section" aria-label="笔记附件">
+              <h3>附件</h3>
+              <p v-if="linkedAttachmentsError" class="section-description">{{ linkedAttachmentsError }}</p>
+              <ul v-if="linkedAttachments.length" class="attachment-list">
+                <li v-for="file in linkedAttachments" :key="file.id" class="attachment-row">
+                  <span class="attachment-file-info">{{ file.name }}</span>
+                  <a v-if="attachmentCanPreview(file.name)" class="note-toolbar-text" :href="attachmentUrl(file, true)" target="_blank" rel="noopener">预览</a>
+                  <a class="note-toolbar-text" :href="attachmentUrl(file)" :download="file.name">下载</a>
+                </li>
+              </ul>
+            </section>
             <footer v-if="!linkedRecord.deletedAt" class="note-reader-footer">
               <details class="note-detail-links" :open="showNoteLinks"
                 @toggle="showNoteLinks = ($event.currentTarget as HTMLDetailsElement).open">
@@ -6529,4 +6753,21 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
 .review-outline-menu summary { width: fit-content; }
 .review-outline-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px; border: 1px solid var(--note-border); border-radius: 8px; font-size: 13px; }
 .review-outline-panel ul { margin-block: 4px; padding-inline-start: 20px; }
+</style>
+<style scoped>
+.attachment-editor { margin-block: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.attachment-action { position: relative; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; cursor: pointer; }
+.attachment-action input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.attachment-action:focus-within { outline: 2px solid #a56d19; outline-offset: 2px; }
+.attachment-action:has(input:disabled) { opacity: .55; }
+.attachment-list { list-style: none; padding: 0; margin: 8px 0; }
+.attachment-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 4px; border-bottom: 1px solid var(--note-border); }
+.attachment-row a { text-decoration: none; }
+.attachment-file-info { display: grid; gap: 2px; flex: 1 1 125px; min-width: 0; overflow-wrap: anywhere; }
+.queued-attachments { width: 100%; max-height: 18dvh; overflow: auto; }
+.queued-attachments .attachment-row { padding-block: 3px; font-size: 13px; }
+.attachment-path-field { display: grid; flex: 1 1 260px; min-width: 0; gap: 4px; }
+.attachment-filters { margin-bottom: 12px; }
+.note-attachment-section { margin-bottom: 16px; }
+.note-attachment-section h3 { font-size: 15px; margin-bottom: 4px; }
 </style>

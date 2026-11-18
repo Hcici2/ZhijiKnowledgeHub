@@ -14,6 +14,8 @@
 !/frontend/vite.config.ts
 /preview-backend/*
 !/preview-backend/main.py
+!/preview-backend/attachments.py
+!/preview-backend/test_attachments.py
 !/preview-backend/local_auth.py
 !/preview-backend/record_export.py
 !/preview-backend/excel_export.py

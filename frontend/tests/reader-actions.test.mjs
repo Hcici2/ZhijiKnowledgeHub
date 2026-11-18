@@ -134,4 +134,25 @@ assert.equal(captureOpened, false)
 await state.shortcutNewNote(shortcut)
 assert.equal(shortcutHandled, true)
 assert.equal(captureOpened, true)
+globalThis.fetch = async (url, options) => {
+  calls.push({ url, options })
+  const data = url.startsWith('/api/attachments?name=')
+    ? { id: 'a'.repeat(32), name: '设计稿.pdf', size: 4 }
+    : { success: true, records: [], total: 0, page: 1, categories: [], days: {} }
+  return { ok: true, status: 200, json: async () => data }
+}
+state.captureDialog.value.close = () => { captureOpened = false }
+state.message.value = '带附件的正文'
+const uploadedFile = new File(['test'], '设计稿.pdf')
+await state.uploadNoteAttachments({ target: { files: [uploadedFile], value: 'picked' } })
+assert.equal(calls.at(-1).options.body, uploadedFile)
+assert.equal(state.captureAttachments.value.length, 1)
+await state.addRecord()
+const create = calls.findLast(call => call.url === '/api/records' && call.options?.method === 'POST')
+assert.deepEqual(JSON.parse(create.options.body).attachment_ids, ['a'.repeat(32)])
+assert.equal(state.captureAttachments.value.length, 0)
+state.attachmentLibrary.value = [{ name: '设计稿.pdf' }, { name: '设计稿.png' }, { name: '其他.pdf' }]
+state.attachmentQuery.value = '设计'
+state.attachmentKind.value = 'PDF'
+assert.deepEqual(state.visibleAttachments.value.map(file => file.name), ['设计稿.pdf'])
 console.log('PASS: reader actions, filter reset and saved search shortcuts')

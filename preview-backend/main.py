@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from local_auth import build_auth
+from attachments import init_attachments, attach_files, attachment_router
 from record_export import render_export
 from pydantic import BaseModel, Field
 
@@ -129,6 +130,7 @@ def init_db():
             """)
 
             conn.execute("CREATE TABLE IF NOT EXISTS categories (name TEXT PRIMARY KEY)")
+            init_attachments(conn)
             conn.execute("""CREATE TABLE IF NOT EXISTS note_templates (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE, title TEXT NOT NULL,
@@ -270,6 +272,7 @@ class RecordCreate(BaseModel):
     title: str = Field(default="", max_length=200)
     category: str = Field(default="待整理", max_length=50)
     content: str = Field(min_length=1, max_length=10000)
+    attachment_ids: list[str] = Field(default_factory=list, max_length=50)
 
 # 修改记录时允许提交的字段
 class RecordUpdate(BaseModel):
@@ -280,6 +283,7 @@ class RecordUpdate(BaseModel):
     summary: str | None = Field(default=None, max_length=2000)
     category: str | None = Field(default=None, max_length=50)
     tags: list[str] | None = None
+    attachment_ids: list[str] = Field(default_factory=list, max_length=50)
 
 
 # ==============================
@@ -303,6 +307,9 @@ def get_db():
 
     finally:
         conn.close()
+
+
+app.include_router(attachment_router(get_db, require_session, DATA_DIR, DB_PATH))
 
 
 
@@ -362,6 +369,7 @@ def insert_record(conn, record: RecordCreate):
 def create_record(record: RecordCreate):
     with get_db() as conn:
         saved = insert_record(conn, record)
+        attach_files(conn, saved['id'], record.attachment_ids)
     return {"success": True, "message": "记录已成功保存", "record": saved}
 
 
@@ -434,12 +442,13 @@ def save_record_version(conn, record, captured_at):
 def update_record(record_id: int, record: RecordUpdate):
 
     updates = record.model_dump(exclude_unset=True)
+    attachment_ids = updates.pop('attachment_ids', [])
     if updates.get("note_date") is not None:
         updates["note_date"] = updates["note_date"].isoformat()
     if "pinned" in updates and updates["pinned"] is None:
         raise HTTPException(400, "置顶状态不能为空。")
 
-    if not updates:
+    if not updates and not attachment_ids:
         raise HTTPException(
             status_code=400,
             detail="没有提供需要修改的内容"
@@ -502,6 +511,7 @@ def update_record(record_id: int, record: RecordUpdate):
     with get_db() as conn:
         conn.execute("BEGIN IMMEDIATE")
         previous = active_record(conn, record_id)
+        attach_files(conn, record_id, attachment_ids)
         if any(field in updates and updates[field] != previous[field] for field in VERSION_FIELDS):
             save_record_version(conn, previous, updates["updated_at"])
 

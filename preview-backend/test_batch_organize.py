@@ -10,7 +10,7 @@ class BatchOrganizationTest(unittest.TestCase):
     def test_merges_tags_and_rolls_back_stale_selection(self):
         with tempfile.TemporaryDirectory() as folder:
             source = Path(__file__).resolve().parent
-            for name in ('main.py', 'local_auth.py', 'record_export.py', 'excel_export.py'):
+            for name in ('main.py', 'local_auth.py', 'record_export.py', 'excel_export.py', 'attachments.py'):
                 shutil.copy2(source / name, folder)
             result = subprocess.run([sys.executable, '-X', 'utf8', '-c', '''
 import json
