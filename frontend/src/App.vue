@@ -405,7 +405,7 @@ function categoryChanged() {
 const activeView = ref<RecordView>('library')
 const viewDetails = computed(() => views.find(view => view.id === activeView.value) ?? views[1])
 
-function openView(view: RecordView) {
+function openView(view: RecordView, noteDay?: string) {
   if (batchMoveBusy.value) return
   if (taskBatchBusy.value || activeTaskRequests.value.size) return
   if (!detailOpen.value && editingTaskId.value !== null && !window.confirm('待办还有未保存的修改，确定离开吗？')) return
@@ -426,6 +426,14 @@ function openView(view: RecordView) {
   selectedTag.value = ''
   selectedCategory.value = ''
   cancelEdit()
+  if (view === 'library' && noteDay) {
+    searchQuery.value = ''
+    activeKeyword.value = ''
+    todayKey.value = localDateKey()
+    if (noteDay.slice(0, 7) !== selectedDay.value.slice(0, 7)) calendarCounts.value = {}
+    selectedDay.value = noteDay
+    libraryMode.value = 'calendar'
+  }
   if (view === 'tasks') {
     ++latestRequest
     return loadTasks()
@@ -1500,21 +1508,28 @@ async function saveEdit(recordId: number) {
 const pinRequests = ref(new Set<number>())
 
 async function togglePin(record: KnowledgeRecord) {
-  if (pinRequests.value.has(record.id)) return
+  if (record.deletedAt || pinRequests.value.has(record.id)) return
+  const pinned = !record.pinned
   pinRequests.value.add(record.id)
   try {
     const response = await recordsRequest('/api/records/' + record.id, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pinned: !record.pinned })
+      body: JSON.stringify({ pinned })
     })
     if (!response.ok) throw new Error()
+    if (linkedRecord.value?.id === record.id) linkedRecord.value.pinned = pinned
     await loadRecords()
   } catch {
     if (authState.value === 'ready') window.alert('更新置顶状态失败，请重试。')
   } finally {
     pinRequests.value.delete(record.id)
   }
+}
+
+function viewNoteDay(record: KnowledgeRecord) {
+  const day = record.noteDate || record.createdDay
+  if (!record.deletedAt && /^\d{4}-\d{2}-\d{2}$/.test(day)) return openView('library', day)
 }
 
 const settingsOverview = ref<{ active: number, inbox: number, pinned: number, trash: number } | null>(null)
@@ -3449,9 +3464,17 @@ onUnmounted(() => {
                 <h3 class="note-detail-title">{{ linkedRecord.title }}</h3>
                 <div class="record-meta note-detail-meta">
                   <span class="record-category">{{ categoryLabel(linkedRecord.category) }}</span>
-                  <span v-if="linkedRecord.noteDate && linkedRecord.noteDate !== linkedRecord.createdDay">
+                  <span v-if="linkedRecord.deletedAt && linkedRecord.noteDate && linkedRecord.noteDate !== linkedRecord.createdDay">
                     笔记日期 {{ linkedRecord.noteDate }}
                   </span>
+                  <button v-if="!linkedRecord.deletedAt" type="button" class="note-toolbar-text reader-meta-action"
+                    title="查看这一天的笔记" @click="viewNoteDay(linkedRecord)">
+                    <AppIcon name="calendar" :size="14" />{{ linkedRecord.noteDate || linkedRecord.createdDay }}
+                  </button>
+                  <button v-if="!linkedRecord.deletedAt" type="button" class="note-toolbar-text reader-meta-action"
+                    :aria-pressed="linkedRecord.pinned" :disabled="pinRequests.has(linkedRecord.id)" @click="togglePin(linkedRecord)">
+                    <AppIcon name="pinned" :size="14" />{{ linkedRecord.pinned ? '已置顶' : '置顶' }}
+                  </button>
                   <span :title="'创建于 ' + linkedRecord.time">{{ linkedRecord.time }}</span>
                   <span v-for="tag in linkedRecord.tags" :key="tag" class="record-tag">{{ tag }}</span>
                 </div>
@@ -6272,6 +6295,8 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
 .reader-page-navigation { display: flex; align-items: center; justify-content: space-between; gap: 4px; padding-block: 8px; border-bottom: 1px solid var(--note-border); }
 .reader-page-navigation span { color: var(--note-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .reader-page-navigation [aria-disabled="true"] { opacity: .45; cursor: default; }
+.reader-meta-action { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 3px 6px; }
+.reader-meta-action[aria-pressed="true"] { background: #f4ead6; }
 </style>
 <style scoped>
 .draft-continue-button { background: #f4ead6; color: #76511c; cursor: pointer; }
