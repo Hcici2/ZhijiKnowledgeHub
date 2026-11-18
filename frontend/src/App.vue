@@ -10,6 +10,7 @@ import WritingPreview from './components/WritingPreview.vue'
 import FormattedEditor from './components/FormattedEditor.vue'
 import AppIcon from './components/AppIcon.vue'
 import { reviewMarkdown, reviewPlainText } from './reviewExport'
+import { adjacentCalendarDay } from './calendarDay'
 import CaptureTemplates from './components/CaptureTemplates.vue'
 
 interface ApiRecord {
@@ -799,10 +800,8 @@ function selectCalendarToday() {
 }
 
 function stepCalendarDay(direction: -1 | 1) {
-  const date = new Date(selectedDay.value + 'T12:00:00')
-  date.setDate(date.getDate() + direction)
-  if (date.getFullYear() < 1 || date.getFullYear() > 9998) return
-  return selectCalendarDay(localDateKey(date))
+  const day = adjacentCalendarDay(selectedDay.value, direction)
+  if (day) return selectCalendarDay(day)
 }
 
 function jumpToCalendarDate(event: Event) {
@@ -817,8 +816,8 @@ function jumpToCalendarDate(event: Event) {
   }
 }
 
-function selectCalendarDay(day: string) {
-  if (batchMoveBusy.value || dailyReviewBusy.value || reviewDialog.value?.open) return
+function selectCalendarDay(day: string, source: 'calendar' | 'review' = 'calendar') {
+  if (batchMoveBusy.value || dailyReviewBusy.value || (reviewDialog.value?.open && source !== 'review')) return
   if (detailOpen.value && !splitReader.value && !closeActiveReader()) return
   if (day.slice(0, 7) !== selectedDay.value.slice(0, 7)) calendarCounts.value = {}
   if (day !== selectedDay.value) resetBatchMove()
@@ -837,6 +836,15 @@ const reviewDialog = ref<HTMLDialogElement | null>(null)
 const reviewBody = ref<InstanceType<typeof FormattedEditor> | null>(null)
 const reviewWindowWidth = ref<number>()
 const reviewEditing = ref(false)
+function browseDailyReview(direction: -1 | 0 | 1) {
+  if (dailyReviewBusy.value || !reviewDialog.value?.open) return
+  todayKey.value = localDateKey()
+  const day = direction === 0 ? todayKey.value : adjacentCalendarDay(selectedDay.value, direction)
+  if (!day || day === selectedDay.value) return
+  reviewEditing.value = false
+  reviewOutlineMenu.value?.removeAttribute('open')
+  return selectCalendarDay(day, 'review')
+}
 const reviewOutlines = [
   { name: '简短回顾', headings: ['今天完成了什么', '记下一个收获', '明天先做什么'] },
   { name: '工作复盘', headings: ['进展与成果', '遇到的问题', '下一步行动'] },
@@ -3182,11 +3190,16 @@ onUnmounted(() => {
         :style="reviewWindowWidth ? { width: 'min(' + reviewWindowWidth + 'px, calc(100% - 24px))' } : undefined"
         @cancel="dailyReviewBusy && $event.preventDefault()">
         <div class="links-toolbar">
-          <div><h2 id="daily-review-heading">每日回顾</h2><p class="section-description">{{ selectedDay }} · {{ selectedDayLabel }}</p></div>
+          <div><h2 id="daily-review-heading">每日回顾</h2><p class="section-description" aria-live="polite">{{ selectedDay }} · {{ selectedDayLabel }}</p></div>
           <form method="dialog">
             <button class="note-icon-button note-close" aria-label="关闭每日回顾" :disabled="dailyReviewBusy"><AppIcon name="close" /></button>
           </form>
         </div>
+        <nav class="review-day-navigation" aria-label="浏览其他日期的回顾">
+          <button type="button" class="search-clear" :disabled="dailyReviewBusy || selectedDay === '0001-01-01'" @click="browseDailyReview(-1)">‹ 前一天</button>
+          <button type="button" class="search-clear" :disabled="dailyReviewBusy || selectedDay === todayKey" @click="browseDailyReview(0)">回到今天</button>
+          <button type="button" class="search-clear" :disabled="dailyReviewBusy || selectedDay === '9998-12-31'" @click="browseDailyReview(1)">后一天 ›</button>
+        </nav>
         <div v-if="!showReviewEditor && canEditDailyReview" class="review-reading">
           <WritingPreview :text="dailyReviewSaved[selectedDay] ?? ''" />
         </div>
@@ -6284,6 +6297,8 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
 .review-entry:hover { background: #f3ecdc; }
 .review-reading { min-height: 0; max-height: 60dvh; overflow-y: auto; overscroll-behavior-y: contain; padding: 16px 2px; line-height: 1.85; }
 .review-reading-footer { flex-shrink: 0; }
+.review-day-navigation { flex-shrink: 0; display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+.review-day-navigation .search-clear { min-height: 34px; }
 .review-export-menu { position: relative; }
 .review-export-menu > summary { list-style: none; display: flex; align-items: center; cursor: pointer; }
 .review-export-menu > summary::-webkit-details-marker { display: none; }
