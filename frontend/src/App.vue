@@ -1355,6 +1355,8 @@ interface NoteAttachment {
   id: string
   name: string
   size: number
+  created_at?: string
+  trashed_at?: string | null
   record_id?: number | null
   record_title?: string | null
   deleted_at?: string | null
@@ -1376,6 +1378,7 @@ const attachmentActionMessage = ref('')
 const linkedAttachmentsError = ref('')
 const attachmentQuery = ref('')
 const attachmentKind = ref('')
+const attachmentSort = ref<'newest' | 'oldest' | 'name' | 'size'>('newest')
 const onlyUnlinkedAttachments = ref(false)
 const attachmentStoragePath = ref('')
 const attachmentDefaultPath = ref('')
@@ -1407,11 +1410,28 @@ function attachmentInlineKind(name: string) {
 function attachmentSize(size: number) {
   return size < 1024 ? size + ' B' : size < 1048576 ? (size / 1024).toFixed(1) + ' KB' : (size / 1048576).toFixed(1) + ' MB'
 }
-const visibleAttachments = computed(() => attachmentLibrary.value.filter(file =>
-  (attachmentTrashVisible.value || !onlyUnlinkedAttachments.value || !file.record_id) &&
-  (!attachmentKind.value || attachmentType(file.name) === attachmentKind.value) &&
-  file.name.toLowerCase().includes(attachmentQuery.value.trim().toLowerCase())
-))
+const attachmentNameOrder = new Intl.Collator('zh-CN', { numeric: true, sensitivity: 'base' })
+const attachmentDateFormat = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' })
+function attachmentTimestamp(value?: string | null) {
+  return value ? Date.parse(value.replace(' ', 'T') + (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(value) ? 'Z' : '')) : NaN
+}
+function attachmentDateLabel(file: NoteAttachment) {
+  const timestamp = attachmentTimestamp(attachmentTrashVisible.value ? file.trashed_at : file.created_at)
+  if (!Number.isFinite(timestamp)) return ''
+  return (attachmentTrashVisible.value ? '删除于 ' : '上传于 ') + attachmentDateFormat.format(timestamp)
+}
+const visibleAttachments = computed(() => {
+  const query = attachmentQuery.value.trim().toLowerCase()
+  const files = attachmentLibrary.value.filter(file =>
+    (attachmentTrashVisible.value || !onlyUnlinkedAttachments.value || !file.record_id) &&
+    (!attachmentKind.value || attachmentType(file.name) === attachmentKind.value) &&
+    [file.name, file.record_title].some(value => value?.toLowerCase().includes(query))
+  )
+  if (attachmentSort.value === 'name') return files.sort((a, b) => attachmentNameOrder.compare(a.name, b.name))
+  if (attachmentSort.value === 'size') return files.sort((a, b) => b.size - a.size)
+  if (attachmentSort.value === 'oldest') return files.reverse()
+  return files
+})
 function attachmentUrl(file: NoteAttachment, preview = false, trash = false) {
   const query = new URLSearchParams()
   if (preview) query.set('preview', 'true')
@@ -3231,9 +3251,13 @@ onUnmounted(() => {
             <button type="button" class="search-submit" aria-current="page">附件</button>
           </nav>
           <div class="settings-fields attachment-filters">
-            <input v-model="attachmentQuery" type="search" class="category-filter" aria-label="搜索附件文件名" placeholder="搜索文件名" />
+            <input v-model="attachmentQuery" type="search" class="category-filter" aria-label="搜索文件名或来源笔记" placeholder="搜索文件名或来源笔记" />
             <select v-model="attachmentKind" class="category-filter" aria-label="附件类型">
               <option value="">全部类型</option><option>图片</option><option>PDF</option><option>视频</option><option>其他文件</option>
+            </select>
+            <select v-model="attachmentSort" class="category-filter" aria-label="附件排序">
+              <option value="newest">最新在前</option><option value="oldest">最早在前</option>
+              <option value="name">按名称</option><option value="size">体积从大到小</option>
             </select>
             <label v-if="!attachmentTrashVisible" class="section-description"><input v-model="onlyUnlinkedAttachments" type="checkbox" /> 只看未关联</label>
           </div>
@@ -3256,6 +3280,8 @@ onUnmounted(() => {
                 <strong><input v-if="attachmentTrashVisible || attachmentBatchMode" v-model="selectedAttachmentIds" type="checkbox" :value="file.id"
                   :aria-label="'选择附件 ' + file.name" :disabled="attachmentActionBusy" /> {{ file.name }}</strong>
                 <span class="section-description">{{ attachmentType(file.name) }} · {{ attachmentSize(file.size) }}{{ file.deleted_at ? ' · 来源在回收站' : !file.record_id ? ' · 独立文件' : '' }}</span>
+                <span v-if="attachmentDateLabel(file)" class="section-description">{{ attachmentDateLabel(file) }}</span>
+                <span v-if="file.record_title" class="section-description">来源 · {{ file.record_title }}</span>
               </label>
               <template v-if="attachmentTrashVisible">
                 <button type="button" class="note-toolbar-text" :disabled="attachmentActionBusy" @click="changeAttachmentTrash(file, 'restore')">恢复</button>

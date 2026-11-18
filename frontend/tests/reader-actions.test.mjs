@@ -318,3 +318,17 @@ const previewTemplate = parse(fs.readFileSync(new URL('../src/components/Attachm
 const videoTag = previewTemplate.match(/<video\b[^>]*>/)?.[0]
 assert.match(videoTag, /\bpreload="metadata"/)
 assert.doesNotMatch(videoTag, /\bautoplay\b/)
+state.attachmentKind.value = ''
+state.attachmentQuery.value = ''
+state.attachmentTrashVisible.value = false
+state.attachmentLibrary.value = [
+  { name: '文件10.pdf', size: 20, record_title: '会议纪要', created_at: '2026-11-18 08:00:00' },
+  { name: '文件2.pdf', size: 50 },
+]
+state.attachmentSort.value = 'name'
+assert.deepEqual(state.visibleAttachments.value.map(file => file.name), ['文件2.pdf', '文件10.pdf'])
+state.attachmentSort.value = 'size'
+assert.equal(state.visibleAttachments.value[0].size, 50)
+state.attachmentQuery.value = '会议'
+assert.deepEqual(state.visibleAttachments.value.map(file => file.name), ['文件10.pdf'])
+assert.match(state.attachmentDateLabel(state.visibleAttachments.value[0]), /^上传于 .*2026/)
