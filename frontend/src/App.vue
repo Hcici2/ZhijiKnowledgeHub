@@ -299,6 +299,11 @@ interface SavedSearch {
 
 const savedSearches = ref<SavedSearch[]>([])
 const savedSearchId = ref<number | null>(null)
+const quickSavedSearches = computed(() => {
+  const recent = savedSearches.value.slice(-3).reverse()
+  const active = savedSearches.value.find(search => search.id === savedSearchId.value)
+  return active && !recent.some(search => search.id === active.id) ? [active, ...recent.slice(0, 2)] : recent
+})
 const savedSearchName = ref('')
 const showSavedSearchForm = ref(false)
 const savedSearchNameInput = ref<HTMLInputElement | null>(null)
@@ -338,9 +343,12 @@ async function loadSavedSearches() {
   }
 }
 
-function applySavedSearch() {
-  const saved = savedSearches.value.find(search => search.id === savedSearchId.value)
-  if (!saved) return
+function applySavedSearch(id = savedSearchId.value) {
+  const saved = savedSearches.value.find(search => search.id === id)
+  if (!saved || batchMoveBusy.value || batchBusy.value) return
+  if (detailOpen.value && !closeActiveReader()) return
+  resetBatchMove()
+  savedSearchId.value = saved.id
   activeView.value = saved.view
   libraryMode.value = 'list'
   selectedCategory.value = saved.category
@@ -3020,9 +3028,15 @@ onUnmounted(() => {
               <button type="button" class="search-clear" @click="filterLastSevenDays">最近 7 天</button>
             </form>
             <p v-if="dateError" class="search-error" role="alert">{{ dateError }}</p>
+            <div v-if="quickSavedSearches.length" class="saved-searches quick-saved-searches" aria-label="常用搜索快捷入口">
+              <span class="section-description">常用搜索</span>
+              <button v-for="search in quickSavedSearches" :key="search.id" type="button" class="record-tag tag-filter"
+                :title="search.name" :aria-pressed="savedSearchId === search.id" :disabled="batchMoveBusy || batchBusy"
+                @click="applySavedSearch(search.id)">{{ search.name }}</button>
+            </div>
             <div class="saved-searches">
               <select v-if="savedSearches.length" v-model="savedSearchId" class="category-filter"
-                aria-label="常用搜索" @change="applySavedSearch">
+                aria-label="常用搜索" @change="applySavedSearch()">
                 <option :value="null">常用搜索</option>
                 <option v-for="search in savedSearches" :key="search.id" :value="search.id">{{ search.name }}</option>
               </select>
@@ -6370,6 +6384,8 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
 .active-library-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-block: 6px; color: var(--note-muted); font-size: 12px; }
 .active-library-filters .record-tag { max-width: 100%; overflow-wrap: anywhere; }
 .saved-search-preview { flex-basis: 100%; color: var(--note-muted); font-size: 12px; overflow-wrap: anywhere; }
+.quick-saved-searches button { max-width: min(180px, 100%); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quick-saved-searches button[aria-pressed="true"] { background: #efe2c8; color: #654719; }
 </style>
 <style scoped>
 .draft-continue-button { background: #f4ead6; color: #76511c; cursor: pointer; }
