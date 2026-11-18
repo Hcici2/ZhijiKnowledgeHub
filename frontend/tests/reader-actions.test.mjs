@@ -433,6 +433,72 @@ await state.filterDatePreset('all')
 assert.equal(state.appliedDateFrom.value, '')
 await state.filterDatePreset('month-days', new Date(2026, 2, 2, 12))
 assert.equal(state.appliedDateFrom.value, '2026-02-01')
+
+const workspace = load('../src/App.vue')
+workspace.authState.value = 'ready'
+workspace.searchQuery.value = '工作区关键词草稿'
+workspace.activeKeyword.value = '工作区关键词'
+workspace.selectedCategory.value = '工作经验'
+workspace.selectedTag.value = '跟进'
+workspace.appliedDateFrom.value = '2026-11-01'
+workspace.recordOrder.value = 'oldest'
+await workspace.openView('pinned')
+assert.equal(workspace.searchQuery.value, '')
+assert.equal(workspace.activeKeyword.value, '')
+assert.equal(workspace.selectedCategory.value, '')
+assert.equal(workspace.appliedDateFrom.value, '')
+assert.equal(workspace.recordOrder.value, 'newest')
+workspace.searchQuery.value = '置顶'
+workspace.activeKeyword.value = '置顶'
+await workspace.openView('library')
+assert.equal(workspace.searchQuery.value, '工作区关键词草稿')
+assert.equal(workspace.activeKeyword.value, '工作区关键词')
+assert.equal(workspace.selectedCategory.value, '工作经验')
+assert.equal(workspace.selectedTag.value, '跟进')
+assert.equal(workspace.appliedDateFrom.value, '2026-11-01')
+assert.equal(workspace.recordOrder.value, 'oldest')
+workspace.savedSearches.value = [{ id: 5, name: '置顶快捷筛选', view: 'pinned', category: '', keyword: '快捷' }]
+await workspace.applySavedSearch(5)
+assert.equal(workspace.activeKeyword.value, '快捷')
+await workspace.openView('library')
+assert.equal(workspace.activeKeyword.value, '工作区关键词')
+await workspace.openView('pinned')
+assert.equal(workspace.activeKeyword.value, '快捷')
+assert.equal(workspace.savedSearchId.value, 5)
+
+const drafts = new Map([
+  ['zhiji-capture-draft-v1', '{}'],
+  ['zhiji-edit-draft-v1:1', '{}'],
+  ['zhiji-review-draft-v1:2026-11-18', '未保存内容'],
+  ['unrelated', 'unchanged'],
+])
+globalThis.sessionStorage = {
+  get length() { return drafts.size },
+  key: index => [...drafts.keys()][index],
+  getItem: key => drafts.get(key) ?? null,
+  removeItem: key => drafts.delete(key),
+}
+const logoutRequests = []
+let logoutStatus = 503
+globalThis.fetch = async url => {
+  logoutRequests.push(url)
+  return Response.json({ detail: '模拟退出失败' }, { status: logoutStatus })
+}
+confirmed = false
+await workspace.authAction('logout')
+assert.equal(logoutRequests.length, 0)
+assert.match(confirmations.at(-1), /丢弃草稿并退出/)
+assert.equal(drafts.size, 4)
+confirmed = true
+await workspace.authAction('logout')
+assert.equal(workspace.authState.value, 'ready')
+assert.equal(workspace.authError.value, '模拟退出失败')
+assert.equal(drafts.size, 4)
+logoutStatus = 200
+await workspace.authAction('logout')
+assert.equal(workspace.authState.value, 'login')
+assert.deepEqual([...drafts], [['unrelated', 'unchanged']])
+assert.equal(workspace.viewFilters.size, 0)
 state.setLibraryPaneWidth(100, 1000)
 assert.equal(state.libraryPaneWidth.value, 280)
 state.setLibraryPaneWidth(800, 1000)

@@ -126,6 +126,7 @@ const newPassword = ref('')
 const confirmPassword = ref('')
 const changingPassword = ref(false)
 const authBusy = ref(false)
+const loggingOut = ref(false)
 const authError = ref('')
 
 function resetAuthForm() {
@@ -137,6 +138,7 @@ function resetAuthForm() {
 
 function showLogin() {
   ++latestRequest
+  readerOrigin = undefined
   records.value = []
   message.value = ''
   captureTitle.value = ''
@@ -185,6 +187,7 @@ function showLogin() {
   recordActionError.value = ''
   searchQuery.value = ''
   activeKeyword.value = ''
+  viewFilters.clear()
   selectedCategory.value = ''
   activeView.value = 'library'
   libraryMode.value = 'list'
@@ -222,6 +225,10 @@ async function checkAuth() {
 
 async function authAction(action: 'setup' | 'login' | 'logout' | 'password') {
   if (authBusy.value) return
+  const discardDrafts = action === 'logout' && hasUnsavedDrafts()
+  if (discardDrafts && !window.confirm(
+    '还有未保存的草稿。选择“取消”可留在知己保存或继续编辑。确定丢弃草稿并退出登录吗？'
+  )) return
   authError.value = ''
   if (action === 'setup' && password.value !== confirmPassword.value ||
       action === 'password' && newPassword.value !== confirmPassword.value) {
@@ -230,6 +237,7 @@ async function authAction(action: 'setup' | 'login' | 'logout' | 'password') {
   }
 
   authBusy.value = true
+  loggingOut.value = action === 'logout'
   try {
     const response = await fetch('/api/auth/' + action, {
       method: 'POST',
@@ -253,9 +261,11 @@ async function authAction(action: 'setup' | 'login' | 'logout' | 'password') {
     }
     resetAuthForm()
     if (action === 'logout') {
-      clearStoredCaptureDraft()
+      if (discardDrafts) {
+        clearStoredCaptureDraft()
+        clearAllEditDrafts()
+      }
       showLogin()
-      clearAllEditDrafts()
     } else if (action === 'password') {
       changingPassword.value = false
     } else {
@@ -267,6 +277,7 @@ async function authAction(action: 'setup' | 'login' | 'logout' | 'password') {
       ? error.message
       : '无法连接知己，请稍后重试。'
   } finally {
+    loggingOut.value = false
     authBusy.value = false
   }
 }
@@ -402,8 +413,13 @@ async function loadSavedSearches() {
 function applySavedSearch(id = savedSearchId.value) {
   const saved = savedSearches.value.find(search => search.id === id)
   if (!saved || batchMoveBusy.value || batchBusy.value) return
-  if (detailOpen.value && !closeActiveReader()) return
+  if (detailOpen.value && !closeActiveReader(false)) return
   resetBatchMove()
+  if (activeView.value !== saved.view) {
+    rememberViewFilters()
+    activeView.value = saved.view
+    restoreViewFilters(saved.view)
+  }
   savedSearchId.value = saved.id
   updateSavedSearchRecency([saved.id, ...savedSearchRecency.value.filter(id => id !== saved.id)])
   activeView.value = saved.view
@@ -488,36 +504,66 @@ function categoryChanged() {
 }
 const activeView = ref<RecordView>('library')
 const viewDetails = computed(() => views.find(view => view.id === activeView.value) ?? views[1])
+const viewFilters = new Map<RecordView, {
+  query: string
+  keyword: string
+  category: string
+  tag: string
+  order: typeof recordOrder.value
+  from: string
+  to: string
+  savedSearch: typeof savedSearchId.value
+  mode: typeof libraryMode.value
+}>()
+
+function rememberViewFilters() {
+  viewFilters.set(activeView.value, {
+    query: searchQuery.value, keyword: activeKeyword.value, category: selectedCategory.value,
+    tag: selectedTag.value, order: recordOrder.value, from: appliedDateFrom.value,
+    to: appliedDateTo.value, savedSearch: savedSearchId.value, mode: libraryMode.value
+  })
+}
+
+function restoreViewFilters(view: RecordView, resetFilters = false) {
+  const previous = viewFilters.get(view)
+  const saved = resetFilters ? undefined : previous
+  resetDates()
+  searchQuery.value = saved?.query ?? ''
+  activeKeyword.value = saved?.keyword ?? ''
+  selectedCategory.value = saved?.category ?? ''
+  selectedTag.value = saved?.tag ?? ''
+  recordOrder.value = previous?.order ?? 'newest'
+  appliedDateFrom.value = dateFromInput.value = saved?.from ?? ''
+  appliedDateTo.value = dateToInput.value = saved?.to ?? ''
+  datesOpen.value = Boolean(appliedDateFrom.value || appliedDateTo.value)
+  savedSearchId.value = savedSearches.value.find(search => search.id === saved?.savedSearch)?.id ?? null
+  libraryMode.value = view === 'library' ? saved?.mode ?? 'list' : 'list'
+}
 
 function openView(view: RecordView, noteFilter?: { day: string } | { category: string } | { tag: string }, showAttachmentTrash = false) {
   if (batchMoveBusy.value) return
   if (taskBatchBusy.value || activeTaskRequests.value.size) return
   if (!detailOpen.value && editingTaskId.value !== null && !window.confirm('待办还有未保存的修改，确定离开吗？')) return
-  if (detailOpen.value && !closeActiveReader()) return
+  if (detailOpen.value && !closeActiveReader(false)) return
+  rememberViewFilters()
   editingTaskId.value = null
   resetBatchMove()
   batchIds.value = []
   batchCategory.value = ''
   batchStatus.value = ''
-  savedSearchId.value = null
   activeView.value = view
+  restoreViewFilters(view, Boolean(noteFilter))
   attachmentTrashVisible.value = view === 'trash' && showAttachmentTrash
   attachmentsToLink.value = []
   clearAttachmentDates()
   selectedAttachmentIds.value = []
   attachmentBatchMode.value = false
-  if (view !== 'library') libraryMode.value = 'list'
-  resetDates()
   currentPage.value = 1
   recordActionStatus.value = ''
   recordActionError.value = ''
   resetSavedSearchForm()
-  selectedTag.value = ''
-  selectedCategory.value = ''
   cancelEdit()
   if (view === 'library' && noteFilter) {
-    searchQuery.value = ''
-    activeKeyword.value = ''
     if ('day' in noteFilter) {
       todayKey.value = localDateKey()
       if (noteFilter.day.slice(0, 7) !== selectedDay.value.slice(0, 7)) calendarCounts.value = {}
@@ -1862,6 +1908,7 @@ async function templateFromRecord(record: KnowledgeRecord) {
 }
 
 async function openCapture() {
+  if (loggingOut.value) return
   restoreCaptureDraft()
   if (captureDateMenu.value) captureDateMenu.value.open = false
   captureError.value = ''
@@ -1946,6 +1993,20 @@ function clearAllEditDrafts() {
       if (key && (key.startsWith(editDraftPrefix) || key.startsWith(reviewDraftPrefix))) sessionStorage.removeItem(key)
     }
   } catch { /* Storage is optional. */ }
+}
+
+function hasUnsavedDrafts() {
+  if (hasCaptureDraft.value || hasStoredCaptureDraft.value || editDraftIds.value.size ||
+      (editingId.value !== null && editDraftBase.value !== JSON.stringify(editDraftFields())) ||
+      Object.values(editAttachmentQueue.value).some(files => files.length) ||
+      Object.entries(dailyReviewDrafts.value).some(([day, draft]) => draft.trim() !== (dailyReviewSaved.value[day] ?? ''))) return true
+  try {
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i)
+      if (key === captureDraftKey || key?.startsWith(editDraftPrefix) || key?.startsWith(reviewDraftPrefix)) return true
+    }
+  } catch { /* Drafts in memory were checked above. */ }
+  return false
 }
 function clearEditDraft(id: number) {
   try { sessionStorage.removeItem(editDraftPrefix + id) } catch { /* Storage is optional. */ }
@@ -2493,6 +2554,7 @@ async function loadLinkRecord(id: number, keepVisible = false) {
 
 async function openLinks(record: KnowledgeRecord, mode: 'read' | 'edit' | 'suggest' | 'links' = 'read') {
   if (detailOpen.value && !allowReaderDismissal()) return
+  if (!detailOpen.value) captureReaderOrigin(record.id)
   resetLinkDialog()
   detailOpen.value = true
   recordActionStatus.value = ''
@@ -2542,10 +2604,51 @@ function allowReaderDismissal() {
   return !dirty || persistEditDraft() || window.confirm('浏览器无法保留草稿。仍然关闭编辑吗？')
 }
 
-function closeActiveReader() {
+let readerOrigin: {
+  view: RecordView
+  trigger: HTMLElement | null
+  recordId?: number
+  offset?: number
+  scrollTop?: number
+} | undefined
+
+function captureReaderOrigin(recordId?: number) {
+  const region = recordScrollRegion.value
+  const row = recordId === undefined ? null : region?.querySelector<HTMLElement>(`[data-record-id="${recordId}"]`)
+  const trigger = document.activeElement instanceof HTMLElement && document.activeElement !== document.body
+    ? document.activeElement : null
+  readerOrigin = {
+    view: activeView.value,
+    trigger,
+    recordId,
+    scrollTop: region?.scrollTop,
+    offset: row && region ? row.getBoundingClientRect().top - region.getBoundingClientRect().top : undefined
+  }
+}
+
+function closeActiveReader(restoreFocus = true) {
   if (!allowReaderDismissal()) return false
+  const origin = readerOrigin
+  readerOrigin = undefined
   resetLinkDialog()
   linkDialog.value?.close()
+  if (origin && restoreFocus !== false) void nextTick(() => {
+    if (detailOpen.value || origin.view !== activeView.value || authState.value !== 'ready') return
+    const region = recordScrollRegion.value
+    const row = origin.recordId === undefined ? null : region?.querySelector<HTMLElement>(`[data-record-id="${origin.recordId}"]`)
+    if (row && region && origin.offset !== undefined) {
+      const bounds = region.getBoundingClientRect()
+      const rowBounds = row.getBoundingClientRect()
+      const offset = Math.max(0, Math.min(origin.offset, region.clientHeight - rowBounds.height))
+      region.scrollTop += rowBounds.top - bounds.top - offset
+    } else if (origin.recordId !== undefined && region) {
+      region.scrollTop = Math.min(origin.scrollTop ?? 0, region.scrollHeight - region.clientHeight)
+    }
+    const target = origin.recordId === undefined
+      ? origin.trigger
+      : row?.querySelector<HTMLElement>('.record-title-link') ?? region
+    if (target?.isConnected) target.focus({ preventScroll: true })
+  })
   return true
 }
 
@@ -2588,8 +2691,26 @@ function closeMenusOutside(event: PointerEvent) {
 }
 
 let readerMedia: MediaQueryList | undefined
+let compactReaderMedia: MediaQueryList | undefined
+const compactReaderToolbar = ref(false)
+const readerActions = ref<HTMLElement | null>(null)
+const readerActionsTrigger = ref<HTMLButtonElement | null>(null)
+
 function updateReaderWidth() {
   wideScreen.value = readerMedia?.matches ?? false
+  compactReaderToolbar.value = compactReaderMedia?.matches ?? false
+}
+
+function closeReaderActions() {
+  if (!readerActions.value?.matches(':popover-open')) return
+  readerActions.value.hidePopover()
+  readerActionsTrigger.value?.focus({ preventScroll: true })
+}
+
+function resetReaderActionSections(event: ToggleEvent) {
+  if (event.newState === 'closed') {
+    readerActions.value?.querySelectorAll<HTMLDetailsElement>('details[open]').forEach(section => { section.open = false })
+  }
 }
 
 watch(splitReader, async () => {
@@ -3101,6 +3222,7 @@ async function openTaskSource(task: NoteTask) { return openSourceNote(task.recor
 
 async function openSourceNote(recordId: number) {
   if (detailOpen.value && !allowReaderDismissal()) return
+  if (!detailOpen.value) captureReaderOrigin()
   resetLinkDialog()
   detailOpen.value = true
   const dialog = linkDialog.value
@@ -3170,8 +3292,10 @@ async function changeTask(task: NoteTask, remove = false) {
 onMounted(() => {
   taskClockTimer = setInterval(() => { taskClock.value = new Date() }, 30000)
   readerMedia = window.matchMedia('(min-width: 1180px)')
+  compactReaderMedia = window.matchMedia('(max-width: 560px)')
   updateReaderWidth()
   readerMedia.addEventListener('change', updateReaderWidth)
+  compactReaderMedia.addEventListener('change', updateReaderWidth)
   void checkAuth()
   window.addEventListener('keydown', focusLibrarySearch)
   window.addEventListener('keydown', shortcutNewNote)
@@ -3180,6 +3304,7 @@ onMounted(() => {
 onUnmounted(() => {
   clearInterval(taskClockTimer)
   readerMedia?.removeEventListener('change', updateReaderWidth)
+  compactReaderMedia?.removeEventListener('change', updateReaderWidth)
   window.removeEventListener('keydown', focusLibrarySearch)
   window.removeEventListener('keydown', shortcutNewNote)
   document.removeEventListener('pointerdown', closeMenusOutside)
@@ -3215,7 +3340,7 @@ onUnmounted(() => {
       </form>
     </section>
   </main>
-  <div v-else class="app-shell" :class="{ 'compact-records': listDensity === 'compact', 'sidebar-collapsed': sidebarCollapsed, 'core-reading': coreSplit }">
+  <div v-else class="app-shell" :inert="loggingOut" :class="{ 'compact-records': listDensity === 'compact', 'sidebar-collapsed': sidebarCollapsed, 'core-reading': coreSplit }">
     <!-- 左侧导航栏 -->
     <aside id="workspace-navigation" class="sidebar">
       <div class="brand">
@@ -4152,26 +4277,31 @@ onUnmounted(() => {
         <Teleport :to="readerHost" :disabled="!splitReader || !readerHost">
         <div class="note-reader-toolbar">
           <button v-if="previousLinkIds.length && editingId === null" type="button" class="note-toolbar-text"
-            :disabled="linkLoading" @click="goBackInLinks">‹ 返回上条</button>
+            :disabled="linkLoading" aria-label="返回上条" @click="goBackInLinks">{{ compactReaderToolbar ? '‹' : '‹ 返回上条' }}</button>
           <h2 id="links-heading">{{ editingId === null ? '笔记详情' : '编辑笔记' }}</h2>
           <div v-if="linkedRecord && editingId === null" class="note-reader-tools">
+            <button type="button" class="note-icon-button" aria-label="查找正文" title="查找正文" :aria-expanded="readerFindOpen" @click="showReaderFind"><AppIcon name="search" :size="18" /></button>
+            <button v-if="compactReaderToolbar" ref="readerActionsTrigger" type="button" class="note-icon-button"
+              aria-label="更多笔记操作" title="更多笔记操作" popovertarget="reader-secondary-actions"><AppIcon name="more" :size="18" /></button>
+            <div id="reader-secondary-actions" ref="readerActions" :class="compactReaderToolbar ? 'reader-actions-popover' : 'reader-secondary-actions'"
+              :popover="compactReaderToolbar ? 'auto' : undefined" :role="compactReaderToolbar ? 'group' : undefined"
+              :aria-label="compactReaderToolbar ? '更多笔记操作' : undefined" @toggle="resetReaderActionSections">
             <details class="note-share-menu record-more" @keydown.esc.stop.prevent="closeMoreMenu">
-              <summary class="note-icon-button" aria-label="复制与下载" title="复制与下载"><AppIcon name="download" :size="18" /></summary>
+              <summary class="note-icon-button" aria-label="复制与下载" title="复制与下载"><AppIcon name="download" :size="18" /><span v-if="compactReaderToolbar">复制与下载</span></summary>
               <div class="record-more-actions">
-                <button type="button" @click="shareNote(linkedRecord, 'plain', $event)">复制纯文本</button>
-                <button type="button" @click="shareNote(linkedRecord, 'markdown', $event)">下载 Markdown</button>
-                <button type="button" @click="shareNote(linkedRecord, 'text', $event)">下载纯文本</button>
+                <button type="button" @click="shareNote(linkedRecord, 'plain', $event); closeReaderActions()">复制纯文本</button>
+                <button type="button" @click="shareNote(linkedRecord, 'markdown', $event); closeReaderActions()">下载 Markdown</button>
+                <button type="button" @click="shareNote(linkedRecord, 'text', $event); closeReaderActions()">下载纯文本</button>
               </div>
             </details>
-            <button type="button" class="note-icon-button" aria-label="查找正文" title="查找正文" :aria-expanded="readerFindOpen" @click="showReaderFind"><AppIcon name="search" :size="18" /></button>
             <details class="reading-menu" @keydown.esc.stop.prevent="closeMoreMenu">
-              <summary class="note-icon-button" aria-label="阅读设置" title="阅读设置">Aa</summary>
+              <summary class="note-icon-button" aria-label="阅读设置" title="阅读设置">Aa<span v-if="compactReaderToolbar">阅读设置</span></summary>
               <div class="reading-options">
                 <strong>阅读设置</strong>
                 <nav v-if="readerOutline.length" class="reader-outline" aria-label="笔记目录">
                   <strong>目录</strong>
                   <button v-for="heading in readerOutline" :key="heading.offset" type="button" class="note-toolbar-text"
-                    :style="{ paddingInlineStart: ((heading.level - 1) * 8 + 6) + 'px' }" @click="jumpToHeading(heading.offset, $event)">{{ heading.title }}</button>
+                    :style="{ paddingInlineStart: ((heading.level - 1) * 8 + 6) + 'px' }" @click="closeReaderActions(); jumpToHeading(heading.offset, $event)">{{ heading.title }}</button>
                 </nav>
                 <small v-else>用 # 或 ## 写章节标题，即可生成目录。</small>
                 <label>正文字号<select v-model.number="readingPreferences.size"><option :value="14">小 · 14</option><option :value="16">标准 · 16</option><option :value="18">大 · 18</option><option :value="20">特大 · 20</option></select></label>
@@ -4181,14 +4311,15 @@ onUnmounted(() => {
               </div>
             </details>
             <button type="button" class="note-icon-button" aria-label="复制原文" title="复制原文"
-              @click="copyRecordText(linkedRecord)"><AppIcon name="copy" :size="18" /></button>
+              @click="copyRecordText(linkedRecord); closeReaderActions()"><AppIcon name="copy" :size="18" /><span v-if="compactReaderToolbar">复制原文</span></button>
             <button v-if="!linkedRecord.deletedAt" type="button" class="note-icon-button" aria-label="历史版本" title="历史版本"
-              @click="openHistory(linkedRecord)"><AppIcon name="recent" :size="18" /></button>
+              @click="closeReaderActions(); openHistory(linkedRecord)"><AppIcon name="recent" :size="18" /><span v-if="compactReaderToolbar">历史版本</span></button>
+            </div>
             <button v-if="!linkedRecord.deletedAt" type="button" class="note-toolbar-text note-edit-action"
               @click="startEdit(linkedRecord)">编辑</button>
           </div>
           <button type="button" class="note-icon-button note-close" aria-label="关闭笔记详情" title="关闭"
-            :disabled="isSavingEdit" @click="closeActiveReader"><AppIcon name="close" /></button>
+            :disabled="isSavingEdit" @click="closeActiveReader()"><AppIcon name="close" /></button>
         </div>
         <p v-if="linkLoading && !linkedRecord" role="status">正在读取记录…</p>
         <p v-if="linkError" class="search-error" role="alert">{{ linkError }}</p>

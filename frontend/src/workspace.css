@@ -34,6 +34,45 @@
 .note-reader-toolbar { background: var(--zh-panel); border-color: var(--zh-border); }
 .note-reader-toolbar h2, .note-paper .note-detail-meta { color: var(--zh-muted); }
 .note-reader-toolbar .note-edit-action { background: var(--zh-selected); color: var(--zh-accent); }
+.reader-secondary-actions { display: contents; }
+.reader-actions-popover {
+  width: min(242px, calc(100vw - 140px));
+  max-height: min(65dvh, 460px);
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--zh-border);
+  border-radius: var(--zh-radius-md);
+  background: var(--zh-panel);
+  color: var(--zh-ink);
+  box-shadow: var(--zh-overlay-shadow);
+}
+@supports (position-area: bottom) {
+  .reader-actions-popover {
+    inset: auto;
+    margin: 4px 0;
+    position-area: bottom span-left;
+    position-try-fallbacks: flip-block;
+  }
+}
+.note-reader-toolbar .reader-actions-popover .note-icon-button {
+  display: flex;
+  justify-content: flex-start;
+  gap: 9px;
+  width: 100%;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.reader-actions-popover :is(.record-more-actions, .reading-options) {
+  position: static;
+  width: auto;
+  margin: 0 4px 4px;
+  box-shadow: none;
+}
+@media (max-width: 560px) {
+  .note-reader-toolbar h2 { white-space: nowrap; }
+  .note-reader-toolbar :is(.note-icon-button, .note-edit-action) { min-height: 44px; min-width: 44px; flex-shrink: 0; }
+}
 .note-paper .note-detail-title { color: var(--zh-ink); font-size: clamp(26px, 2.4vw, 32px); line-height: 1.25; }
 .note-paper .linked-content { max-width: 720px; font-size: 16px; line-height: 1.75; color: var(--zh-ink); }
 .app-shell :deep(.calendar), .app-shell :deep(.calendar-day) { background: var(--zh-field); border-color: var(--zh-border); }
