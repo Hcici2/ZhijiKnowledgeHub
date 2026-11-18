@@ -496,7 +496,7 @@ function openView(view: RecordView, noteFilter?: { day: string } | { category: s
   savedSearchId.value = null
   activeView.value = view
   attachmentTrashVisible.value = view === 'trash' && showAttachmentTrash
-  attachmentToLink.value = null
+  attachmentsToLink.value = []
   clearAttachmentDates()
   selectedAttachmentIds.value = []
   attachmentBatchMode.value = false
@@ -1402,7 +1402,7 @@ function filterAttachmentsLastWeek() {
 }
 const onlyUnlinkedAttachments = ref(false)
 const unlinkedAttachmentCount = computed(() => attachmentLibrary.value.filter(file => file.record_id == null).length)
-const attachmentToLink = ref<NoteAttachment | null>(null)
+const attachmentsToLink = ref<NoteAttachment[]>([])
 const attachmentNoteQuery = ref('')
 const attachmentNoteResults = ref<ApiRecord[]>([])
 const attachmentNoteStatus = ref('')
@@ -1476,8 +1476,13 @@ function attachmentUrl(file: NoteAttachment, preview = false, trash = false) {
   if (trash) query.set('trash', 'true')
   return '/api/attachments/' + encodeURIComponent(file.id) + '/file' + (query.size ? '?' + query : '')
 }
-function openAttachmentLinker(file: NoteAttachment) {
-  attachmentToLink.value = file
+function openAttachmentLinker(files: NoteAttachment[]) {
+  if (attachmentNoteBusy.value || !files.length || files.some(file => file.record_id != null)) return
+  if (files.length > 50) {
+    attachmentActionMessage.value = '一次最多关联 50 个附件，请分批选择。'
+    return
+  }
+  attachmentsToLink.value = files
   attachmentNoteQuery.value = ''
   attachmentNoteResults.value = []
   attachmentNoteStatus.value = ''
@@ -1499,18 +1504,20 @@ async function findAttachmentNotes() {
   } finally { attachmentNoteBusy.value = false }
 }
 async function linkAttachmentToNote(note: ApiRecord) {
-  const file = attachmentToLink.value
-  if (!file || attachmentNoteBusy.value) return
+  const files = attachmentsToLink.value
+  if (!files.length || attachmentNoteBusy.value) return
   attachmentNoteBusy.value = true
   attachmentNoteStatus.value = ''
   try {
     await attachmentRequest('/api/records/' + note.id, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ attachment_ids: [file.id] }),
+      body: JSON.stringify({ attachment_ids: files.map(file => file.id) }),
     })
-    attachmentToLink.value = null
+    attachmentsToLink.value = []
+    const linkedIds = new Set(files.map(file => file.id))
+    selectedAttachmentIds.value = selectedAttachmentIds.value.filter(id => !linkedIds.has(id))
     await loadAttachmentLibrary()
-    attachmentActionMessage.value = '附件已关联到笔记。'
+    attachmentActionMessage.value = `已关联 ${files.length} 个附件到笔记。`
   } catch (error) {
     attachmentNoteStatus.value = error instanceof Error ? error.message : '关联笔记失败。'
   } finally { attachmentNoteBusy.value = false }
@@ -1622,6 +1629,7 @@ function toggleAllAttachments() {
 function toggleAttachmentBatchMode() {
   attachmentBatchMode.value = !attachmentBatchMode.value
   selectedAttachmentIds.value = []
+  attachmentsToLink.value = []
 }
 async function changeAttachmentTrash(file: NoteAttachment, action: 'trash' | 'restore' | 'purge') {
   return changeAttachmentsTrash([file], action)
@@ -3382,12 +3390,12 @@ onUnmounted(() => {
           <p v-if="!attachmentTrashVisible && !libraryAttachmentsLoading && !libraryAttachmentsError" class="section-description">
             已关联 {{ attachmentLibrary.length - unlinkedAttachmentCount }} 个 · 未关联 {{ unlinkedAttachmentCount }} 个
           </p>
-          <section v-if="attachmentToLink && !attachmentTrashVisible" class="attachment-folder-picker" aria-label="关联到笔记">
-            <p>将「{{ attachmentToLink.name }}」关联到笔记</p>
+          <section v-if="attachmentsToLink.length && !attachmentTrashVisible" class="attachment-folder-picker" aria-label="关联到笔记">
+            <p>{{ attachmentsToLink.length === 1 ? '将「' + attachmentsToLink[0]?.name + '」关联到笔记' : '将所选 ' + attachmentsToLink.length + ' 个附件关联到同一篇笔记' }}</p>
             <form class="settings-fields" @submit.prevent="findAttachmentNotes">
               <input v-model="attachmentNoteQuery" type="search" aria-label="搜索要关联的笔记" class="category-filter" />
               <button class="search-submit" :disabled="!attachmentNoteQuery.trim() || attachmentNoteBusy">搜索笔记</button>
-              <button type="button" class="search-clear" :disabled="attachmentNoteBusy" @click="attachmentToLink = null">取消关联选择</button>
+              <button type="button" class="search-clear" :disabled="attachmentNoteBusy" @click="attachmentsToLink = []">取消关联选择</button>
             </form>
             <p v-if="attachmentNoteStatus" role="status" class="section-description">{{ attachmentNoteStatus }}</p>
             <ul v-if="attachmentNoteResults.length" class="attachment-folder-list">
@@ -3416,6 +3424,10 @@ onUnmounted(() => {
               <button type="button" class="search-clear" :disabled="attachmentActionBusy || !visibleSelectedAttachments.length" @click="changeAttachmentsTrash(visibleSelectedAttachments, 'purge')">永久删除所选</button>
             </template>
             <template v-else>
+              <button type="button" class="search-clear"
+                :title="visibleSelectedAttachments.some(file => file.record_id != null) ? '请只选择未关联的文件' : undefined"
+                :disabled="attachmentNoteBusy || attachmentActionBusy || !visibleSelectedAttachments.length || visibleSelectedAttachments.some(file => file.record_id != null)"
+                @click="openAttachmentLinker(visibleSelectedAttachments)">关联所选到笔记</button>
               <button type="button" class="search-clear" :disabled="attachmentActionBusy || attachmentDownloadBusy || !visibleSelectedAttachments.length" @click="downloadAttachmentsZip(visibleSelectedAttachments)">下载所选 ZIP</button>
               <button type="button" class="search-clear" :disabled="attachmentActionBusy || attachmentDownloadBusy || !visibleSelectedAttachments.length" @click="changeAttachmentsTrash(visibleSelectedAttachments, 'trash')">移入回收站</button>
             </template>
@@ -3438,7 +3450,7 @@ onUnmounted(() => {
               </template>
               <template v-else>
                 <button v-if="file.record_id" type="button" class="note-toolbar-text" :title="file.record_title ?? undefined" @click="openSourceNote(file.record_id)">来源笔记</button>
-                <button v-else type="button" class="note-toolbar-text" :disabled="attachmentNoteBusy || attachmentBatchMode" @click="openAttachmentLinker(file)">关联到笔记</button>
+                <button v-else type="button" class="note-toolbar-text" :disabled="attachmentNoteBusy || attachmentBatchMode" @click="openAttachmentLinker([file])">关联到笔记</button>
                 <button type="button" class="note-toolbar-text" :disabled="attachmentActionBusy" @click="changeAttachmentTrash(file, 'trash')">删除</button>
               </template>
               <a v-if="!attachmentInlineKind(file.name) && attachmentCanPreview(file.name)" class="note-toolbar-text" :href="attachmentUrl(file, true, attachmentTrashVisible)" target="_blank" rel="noopener">预览</a>

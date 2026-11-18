@@ -390,20 +390,25 @@ assert.deepEqual(state.visibleAttachments.value, [])
 state.clearAttachmentDates()
 assert.equal(state.visibleAttachments.value.length, 2)
 state.attachmentTrashVisible.value = false
-state.attachmentLibrary.value = [standalone, linked]
-assert.equal(state.unlinkedAttachmentCount.value, 1)
-state.openAttachmentLinker(standalone)
+const secondStandalone = { ...standalone, id: '3'.repeat(32), name: '补充照片.jpg' }
+state.attachmentLibrary.value = [standalone, linked, secondStandalone]
+assert.equal(state.unlinkedAttachmentCount.value, 2)
+state.openAttachmentLinker([standalone, linked])
+assert.deepEqual(state.attachmentsToLink.value, [])
+state.selectedAttachmentIds.value = [standalone.id, secondStandalone.id]
+state.openAttachmentLinker([standalone, secondStandalone])
 state.attachmentNoteQuery.value = '目标'
 globalThis.fetch = async (url, options) => {
   if (url.startsWith('/api/records/search?')) return Response.json({ records: [{ id: 12, title: '目标笔记' }] })
   if (url === '/api/records/12') {
-    assert.deepEqual(JSON.parse(options.body), { attachment_ids: [standalone.id] })
+    assert.deepEqual(JSON.parse(options.body), { attachment_ids: [standalone.id, secondStandalone.id] })
     return Response.json({ success: true })
   }
-  return Response.json({ attachments: [{ ...standalone, record_id: 12 }, linked] })
+  return Response.json({ attachments: [{ ...standalone, record_id: 12 }, linked, { ...secondStandalone, record_id: 12 }] })
 }
 await state.findAttachmentNotes()
 assert.equal(state.attachmentNoteResults.value[0].id, 12)
 await state.linkAttachmentToNote(state.attachmentNoteResults.value[0])
 assert.equal(state.unlinkedAttachmentCount.value, 0)
-assert.equal(state.attachmentToLink.value, null)
+assert.deepEqual(state.attachmentsToLink.value, [])
+assert.deepEqual(state.selectedAttachmentIds.value, [])
