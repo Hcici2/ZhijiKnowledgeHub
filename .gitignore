@@ -18,6 +18,7 @@
 !/preview-backend/record_export.py
 !/preview-backend/excel_export.py
 !/preview-backend/requirements.txt
+!/preview-backend/test_batch_organize.py
 **/.env*
 **/*.db*
 **/*.sqlite*

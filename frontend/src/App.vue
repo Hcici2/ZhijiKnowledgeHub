@@ -1110,14 +1110,45 @@ const batchMovedTo = ref('')
 const batchMoveStatus = ref('')
 const batchMoveError = ref('')
 const batchMoveBusy = ref(false)
+const batchOrganizeCategory = ref('')
+const batchOrganizeTag = ref('')
 
 function resetBatchMove() {
   batchMoveIsActive.value = false
+  batchOrganizeCategory.value = ''
+  batchOrganizeTag.value = ''
   batchIds.value = []
   batchMoveDate.value = ''
   batchMovedTo.value = ''
   batchMoveStatus.value = ''
   batchMoveError.value = ''
+}
+
+async function organizeSelectedRecords() {
+  const ids = records.value.filter(record => batchIds.value.includes(record.id)).map(record => record.id)
+  const category = batchOrganizeCategory.value.trim()
+  const tag = batchOrganizeTag.value.trim()
+  if (!batchMoveIsActive.value || batchMoveBusy.value || isLoading.value || !ids.length || !(category || tag)) return
+  batchMoveBusy.value = true
+  batchMoveStatus.value = ''
+  batchMoveError.value = ''
+  batchMovedTo.value = ''
+  try {
+    const response = await recordsRequest('/api/records/organize', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, category, tag }),
+    })
+    const result = await response.json()
+    if (!response.ok) throw new Error(typeof result.detail === 'string' ? result.detail : '批量整理失败。若刚更新知己，请重启预览后重试。')
+    batchMoveStatus.value = result.updated ? `已整理 ${result.updated} 条笔记。` : '所选笔记已符合这些条件。'
+    batchIds.value = []
+    batchOrganizeCategory.value = ''
+    batchOrganizeTag.value = ''
+    await Promise.all([loadRecords(), loadCategories(), linkedRecord.value ? loadLinkRecord(linkedRecord.value.id, true) : undefined])
+  } catch (error) {
+    if (authState.value === 'ready') batchMoveError.value = error instanceof Error ? error.message : '批量整理失败。'
+  } finally {
+    batchMoveBusy.value = false
+  }
 }
 
 function toggleBatchMove() {
@@ -3134,7 +3165,7 @@ onUnmounted(() => {
           <div v-show="!isLoading && !listError">
             <div v-if="activeView === 'library' && recordCount" class="batch-controls">
               <button type="button" class="search-clear" :disabled="batchMoveBusy" @click="toggleBatchMove">
-                {{ batchMoveIsActive ? '退出批量管理' : '批量移动 / 删除' }}
+                {{ batchMoveIsActive ? '退出批量管理' : '批量管理' }}
               </button>
               <button v-if="batchMoveIsActive" type="button" class="search-clear" :disabled="batchMoveBusy"
                 @click="batchIds = batchIds.length === records.length ? [] : records.map(record => record.id)">
@@ -3150,6 +3181,17 @@ onUnmounted(() => {
                 </label>
                 <button class="search-submit" :disabled="!batchMoveDate || batchMoveBusy">移动 {{ batchIds.length }} 条</button>
               </form>
+              <details v-if="batchMoveIsActive && batchIds.length" class="batch-organize">
+                <summary>批量归类与标签（{{ batchIds.length }} 条）</summary>
+                <form class="batch-controls" @submit.prevent="organizeSelectedRecords">
+                  <label>目标分类 <select v-model="batchOrganizeCategory" class="category-filter" :disabled="batchMoveBusy">
+                    <option value="">保留原分类</option>
+                    <option v-for="category in categories" :key="category" :value="category">{{ categoryLabel(category) }}</option>
+                  </select></label>
+                  <label>追加标签 <input v-model="batchOrganizeTag" class="category-filter" maxlength="50" placeholder="选填" :disabled="batchMoveBusy" /></label>
+                  <button class="search-submit" :disabled="batchMoveBusy || !batchIds.length || !(batchOrganizeCategory || batchOrganizeTag.trim())">应用整理</button>
+                </form>
+              </details>
             </div>
             <div v-if="activeView === 'trash' && records.length" class="batch-controls">
               <button type="button" class="search-clear" :disabled="batchMoveBusy"

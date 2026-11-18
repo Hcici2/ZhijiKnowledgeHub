@@ -926,6 +926,48 @@ def classify_inbox(batch: InboxClassification):
     return {"updated": len(ids)}
 
 
+class BatchOrganization(BaseModel):
+    ids: list[int] = Field(min_length=1, max_length=100)
+    category: str = Field(default='', max_length=50)
+    tag: str = Field(default='', max_length=50)
+
+
+@app.post('/api/records/organize', dependencies=[Depends(require_session)])
+def organize_records(batch: BatchOrganization):
+    category, tag = batch.category.strip(), batch.tag.strip()
+    if not category and not tag:
+        raise HTTPException(400, '请选择目标分类或填写标签。')
+    ids = list(dict.fromkeys(batch.ids))
+    placeholders = ','.join('?' for _ in ids)
+    now = datetime.now().astimezone().isoformat(timespec='seconds')
+    changed = 0
+    with get_db() as conn:
+        conn.execute('BEGIN IMMEDIATE')
+        rows = conn.execute(f'SELECT * FROM records WHERE deleted_at IS NULL AND id IN ({placeholders})', ids).fetchall()
+        if len(rows) != len(ids):
+            raise HTTPException(409, '部分笔记已不存在或进入回收站，本次没有修改，请刷新后再试。')
+        for row in rows:
+            target = category or row['category']
+            tags_json = row['tags']
+            if tag:
+                try:
+                    tags = json.loads(tags_json or '[]')
+                except (TypeError, ValueError):
+                    raise HTTPException(409, '有笔记的标签无法读取，本次没有修改。') from None
+                if not isinstance(tags, list):
+                    raise HTTPException(409, '有笔记的标签无法读取，本次没有修改。')
+                if tag not in tags:
+                    tags_json = json.dumps([*tags, tag], ensure_ascii=False)
+            if target == row['category'] and tags_json == row['tags']:
+                continue
+            save_record_version(conn, row, now)
+            conn.execute('UPDATE records SET category=?, tags=?, updated_at=? WHERE id=?', (target, tags_json, now, row['id']))
+            changed += 1
+        if category:
+            conn.execute('INSERT OR IGNORE INTO categories(name) VALUES (?)', (category,))
+    return {'updated': changed}
+
+
 @app.get("/api/records/export", dependencies=[Depends(require_session)])
 def export_records(format: Literal["md", "docx", "json", "xlsx"] = "md", q: str = "", category: str = "",
                    view: Literal["web", "recent", "pinned", ""] = "", tag: str = "",
