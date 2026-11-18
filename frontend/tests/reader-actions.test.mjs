@@ -195,4 +195,32 @@ assert.equal(state.attachmentInlineKind('图片.JPG'), 'image')
 assert.equal(state.attachmentInlineKind('录屏.mp4'), 'video')
 assert.equal(state.attachmentInlineKind('说明.pdf'), undefined)
 assert.equal(state.attachmentUrl({ id: 'abc' }, true), '/api/attachments/abc/file?preview=true')
+const trashFile = { id: 'abc', name: '图片.jpg' }
+let confirmed = false
+const confirmations = []
+const attachmentCalls = []
+globalThis.window = { ...globalThis.window, confirm(message) { confirmations.push(message); return confirmed } }
+globalThis.fetch = async (url, options) => {
+  attachmentCalls.push([url, options?.method])
+  return { ok: true, status: 200, json: async () => ({ attachments: [trashFile] }) }
+}
+state.linkedAttachments.value = [trashFile]
+await state.changeAttachmentTrash(trashFile, 'trash')
+assert.equal(attachmentCalls.length, 0)
+confirmed = true
+await state.changeAttachmentTrash(trashFile, 'trash')
+assert.deepEqual(state.linkedAttachments.value, [])
+await state.toggleAttachmentTrash()
+confirmed = false
+await state.changeAttachmentTrash(trashFile, 'purge')
+assert.equal(state.attachmentLibrary.value.length, 1)
+confirmed = true
+await state.changeAttachmentTrash(trashFile, 'purge')
+assert.equal(state.attachmentLibrary.value.length, 0)
+assert.deepEqual(attachmentCalls, [
+  ['/api/attachments/abc/trash', 'POST'],
+  ['/api/attachments?trash=true', undefined],
+  ['/api/attachments/abc', 'DELETE'],
+])
+assert.match(confirmations.at(-1), /无法恢复/)
 console.log('PASS: reader actions, filter reset and saved search shortcuts')

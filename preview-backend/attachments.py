@@ -6,6 +6,7 @@ from uuid import uuid4
 from zipfile import ZipFile
 import json
 import os
+import re
 import shutil
 import sqlite3
 import tempfile
@@ -24,12 +25,33 @@ PREVIEW_TYPES = {
     '.mp4': 'video/mp4', '.webm': 'video/webm',
 }
 
+def stored_name(row):
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', row['name']).rstrip(' .')
+    extension = Path(name).suffix
+    stem = name[:-len(extension)] if extension else name
+    extension = extension.encode()[:40].decode(errors='ignore')
+    stem = stem.encode()[:160].decode(errors='ignore').rstrip(' .')
+    return (stem or '附件') + '-' + row['id'] + extension
+
+
+def stored_file(directory, row):
+    named = directory / stored_name(row)
+    return named if named.exists() else directory / row['id']
+
+
+def same_bytes(source, target):
+    with source.open('rb') as original, target.open('rb') as copied:
+        return file_digest(original, 'sha256').digest() == file_digest(copied, 'sha256').digest()
+
 
 def init_attachments(conn):
     conn.execute("""CREATE TABLE IF NOT EXISTS attachments (
         id TEXT PRIMARY KEY, record_id INTEGER REFERENCES records(id) ON DELETE SET NULL,
-        name TEXT NOT NULL, size INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        name TEXT NOT NULL, size INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        trashed_at TEXT
     )""")
+    if 'trashed_at' not in {column[1] for column in conn.execute('PRAGMA table_info(attachments)')}:
+        conn.execute('ALTER TABLE attachments ADD COLUMN trashed_at TEXT')
     conn.execute('CREATE INDEX IF NOT EXISTS attachments_record ON attachments(record_id)')
     conn.execute('CREATE TABLE IF NOT EXISTS attachment_storage (id INTEGER PRIMARY KEY CHECK(id=1), path TEXT NOT NULL)')
 
@@ -40,7 +62,7 @@ def attach_files(conn, record_id, ids):
         return
     markers = ','.join('?' for _ in ids)
     updated = conn.execute(
-        f'UPDATE attachments SET record_id=? WHERE record_id IS NULL AND id IN ({markers})',
+        f'UPDATE attachments SET record_id=? WHERE record_id IS NULL AND trashed_at IS NULL AND id IN ({markers})',
         [record_id, *ids],
     )
     if updated.rowcount != len(ids):
@@ -69,7 +91,7 @@ def attachment_router(get_db, require_session, data_dir, db_path):
                 with get_db() as conn:
                     directory = root(conn)
                     directory.mkdir(parents=True, exist_ok=True)
-                    target = directory / key
+                    target = directory / stored_name({'id': key, 'name': name})
                     with path.open('rb') as source, target.open('xb') as output:
                         created = True
                         shutil.copyfileobj(source, output)
@@ -100,23 +122,54 @@ def attachment_router(get_db, require_session, data_dir, db_path):
             return await run_in_threadpool(finish_upload, path, name, size)
 
     @router.get('/attachments')
-    def list_files(record_id: int | None = None):
-        filters = 'WHERE a.record_id=?' if record_id is not None else ''
+    def list_files(record_id: int | None = None, trash: bool = False):
+        filters = 'a.trashed_at IS NOT NULL' if trash else 'a.trashed_at IS NULL'
+        if record_id is not None:
+            filters += ' AND a.record_id=?'
         with get_db() as conn:
             rows = conn.execute(f"""SELECT a.*, r.deleted_at, r.note_date,
                 COALESCE(NULLIF(TRIM(r.title), ''), substr(r.content,1,60)) AS record_title
                 FROM attachments a LEFT JOIN records r ON a.record_id=r.id
-                {filters} ORDER BY a.created_at DESC, a.id DESC""",
+                WHERE {filters} ORDER BY COALESCE(a.trashed_at, a.created_at) DESC, a.id DESC""",
                 (record_id,) if record_id is not None else ()).fetchall()
         return {'attachments': [dict(row) for row in rows]}
+
+    @router.post('/attachments/{key}/trash')
+    def trash_file(key: str):
+        with lock, get_db() as conn:
+            updated = conn.execute('UPDATE attachments SET trashed_at=CURRENT_TIMESTAMP WHERE id=? AND trashed_at IS NULL', (key,))
+            if not updated.rowcount:
+                raise HTTPException(404, '找不到可移入回收站的附件。')
+        return {'success': True}
+
+    @router.post('/attachments/{key}/restore')
+    def restore_file(key: str):
+        with lock, get_db() as conn:
+            updated = conn.execute('UPDATE attachments SET trashed_at=NULL WHERE id=? AND trashed_at IS NOT NULL', (key,))
+            if not updated.rowcount:
+                raise HTTPException(404, '附件不在回收站。')
+        return {'success': True}
+
+    @router.delete('/attachments/{key}')
+    def purge_file(key: str):
+        with lock, get_db() as conn:
+            row = conn.execute('SELECT id, name FROM attachments WHERE id=? AND trashed_at IS NOT NULL', (key,)).fetchone()
+            if not row:
+                raise HTTPException(409, '请先将附件移入回收站。')
+            try:
+                stored_file(root(conn), row).unlink(missing_ok=True)
+            except OSError as error:
+                raise HTTPException(409, '无法删除附件文件，请关闭正在使用它的程序后重试。') from error
+            conn.execute('DELETE FROM attachments WHERE id=?', (key,))
+        return {'success': True}
 
     @router.get('/attachments/{key}/file')
     def serve_file(key: str, preview: bool = False):
         with get_db() as conn:
-            row = conn.execute('SELECT * FROM attachments WHERE id=?', (key,)).fetchone()
+            row = conn.execute('SELECT * FROM attachments WHERE id=? AND trashed_at IS NULL', (key,)).fetchone()
             if not row:
                 raise HTTPException(404, '附件不存在。')
-            path = root(conn) / row['id']
+            path = stored_file(root(conn), row)
         if not path.is_file():
             raise HTTPException(404, '附件文件找不到，请检查存储位置。')
         media = PREVIEW_TYPES.get(Path(row['name']).suffix.lower()) if preview else None
@@ -167,29 +220,39 @@ def attachment_router(get_db, require_session, data_dir, db_path):
                 destination = requested.resolve()
             except (OSError, ValueError, RuntimeError) as error:
                 raise HTTPException(400, '无法访问这个文件夹，请检查路径和权限。') from error
-            if destination == current:
-                return {'path': str(current), 'copied': 0}
-            ids = [row['id'] for row in conn.execute('SELECT id FROM attachments')]
+            in_place = destination == current
+            rows = conn.execute('SELECT id, name FROM attachments').fetchall()
             created = []
+            cleanup = set()
             try:
                 destination.mkdir(parents=True, exist_ok=True)
                 with tempfile.TemporaryFile(dir=destination):
                     pass
-                for key in ids:
-                    source, target = current / key, destination / key
-                    if target.exists():
-                        with source.open('rb') as original, target.open('rb') as copied:
-                            if file_digest(original, 'sha256').digest() != file_digest(copied, 'sha256').digest():
-                                raise OSError('destination conflict')
+                for row in rows:
+                    source = stored_file(current, row)
+                    target = destination / stored_name(row)
+                    legacy_target = destination / row['id']
+                    if target.is_symlink():
+                        raise OSError('destination is a symbolic link')
+                    if legacy_target != source and legacy_target.exists():
+                        if legacy_target.is_symlink() or not same_bytes(source, legacy_target):
+                            raise OSError('legacy destination conflict')
+                        cleanup.add(legacy_target)
+                    if source == target:
                         continue
-                    with source.open('rb') as original, target.open('xb') as copied:
-                        created.append(target)
-                        shutil.copyfileobj(original, copied)
-                    with source.open('rb') as original, target.open('rb') as copied:
-                        if file_digest(original, 'sha256').digest() != file_digest(copied, 'sha256').digest():
+                    if target.exists():
+                        if not same_bytes(source, target):
+                            raise OSError('destination conflict')
+                    else:
+                        with source.open('rb') as original, target.open('xb') as copied:
+                            created.append(target)
+                            shutil.copyfileobj(original, copied)
+                        if not same_bytes(source, target):
                             raise OSError('verification failure')
-                conn.execute('INSERT OR REPLACE INTO attachment_storage(id,path) VALUES (1,?)', (str(destination),))
-                conn.commit()
+                    cleanup.add(source)
+                if not in_place:
+                    conn.execute('INSERT OR REPLACE INTO attachment_storage(id,path) VALUES (1,?)', (str(destination),))
+                    conn.commit()
             except (OSError, ValueError, sqlite3.Error) as error:
                 for path in created:
                     try:
@@ -197,7 +260,14 @@ def attachment_router(get_db, require_session, data_dir, db_path):
                     except OSError:
                         pass
                 raise HTTPException(409, '迁移未完成。请检查目录权限、空间和原附件，当前存储位置保持不变。') from error
-        return {'path': str(destination), 'copied': len(created)}
+            cleanup_remaining = 0
+            for path in cleanup:
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    cleanup_remaining += 1
+        return {'path': str(destination), 'copied': len(created),
+                'cleanup_remaining': cleanup_remaining, 'previous_path': str(current)}
 
     @router.get('/settings/full-backup')
     def full_backup():
@@ -217,10 +287,10 @@ def attachment_router(get_db, require_session, data_dir, db_path):
                 with ZipFile(archive, 'w') as backup:
                     backup.write(database, 'zhiji.db')
                     for row in rows:
-                        stored = attachment_root / row['id']
+                        stored = stored_file(attachment_root, row)
                         if stored.stat().st_size != row['size']:
                             raise OSError('attachment size mismatch')
-                        backup.write(stored, 'attachments/' + row['id'])
+                        backup.write(stored, 'attachments/' + stored_name(row))
                     backup.writestr('attachments.json', json.dumps([dict(row) for row in rows], ensure_ascii=False, indent=2))
                     account = data_dir / 'account.sqlite3'
                     if account.is_file():

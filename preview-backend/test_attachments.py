@@ -18,7 +18,7 @@ from pathlib import Path
 from zipfile import ZipFile
 from fastapi import HTTPException
 from main import app, create_record, update_record, delete_record, restore_record, get_db, RecordCreate, RecordUpdate, DATA_DIR, DB_PATH, require_session
-from attachments import StorageLocation, attachment_router
+from attachments import StorageLocation, attachment_router, stored_name
 import attachments
 
 async def direct_call(function, *args):
@@ -90,13 +90,40 @@ else:
 assert Path(serve(first['id']).path).parent != destination
 assert (destination / first['id']).read_bytes() == b'conflict'
 (destination / first['id']).unlink()
-assert migrate(StorageLocation(path=str(destination)))['copied'] == 2
+original_root = DATA_DIR / 'attachments'
+assert Path(serve(first['id']).path).name == f"example-{first['id']}.pdf"
+Path(serve(first['id']).path).rename(original_root / first['id'])
+assert Path(serve(first['id']).path).name == first['id']
+assert migrate(StorageLocation(path=str(original_root)))['copied'] == 1
+assert not (original_root / first['id']).exists()
+assert Path(serve(first['id']).path).name == f"example-{first['id']}.pdf"
+(original_root / stored_name(first)).rename(original_root / first['id'])
+(original_root / 'unrelated.txt').write_text('keep')
+trash_attachment = endpoint('/api/attachments/{key}/trash', 'POST')
+restore_attachment = endpoint('/api/attachments/{key}/restore', 'POST')
+purge_attachment = endpoint('/api/attachments/{key}', 'DELETE')
+trash_attachment(second['id'])
+assert len(list_files(note['id'])['attachments']) == 1
+assert list_files(trash=True)['attachments'][0]['id'] == second['id']
+assert migrate(StorageLocation(path=str(destination)))['cleanup_remaining'] == 0
+assert not (original_root / first['id']).exists()
+assert not (original_root / stored_name(second)).exists()
+assert (original_root / 'unrelated.txt').read_text() == 'keep'
+assert (destination / stored_name(second)).is_file()
+restore_attachment(second['id'])
+assert len(list_files(note['id'])['attachments']) == 2
+try:
+    purge_attachment(second['id'])
+except HTTPException as error:
+    assert error.status_code == 409
+else:
+    raise AssertionError('active attachment was purged')
 assert Path(serve(first['id']).path).parent == destination
 nested = destination / '新的附件目录'
 assert migrate(StorageLocation(path=f' "{nested}" '))['copied'] == 2
 assert Path(serve(first['id']).path).parent == nested
-assert (destination / first['id']).read_bytes() == b'example bytes'
-assert migrate(StorageLocation(path=''))['copied'] == 0
+assert not (destination / stored_name(first)).exists()
+assert migrate(StorageLocation(path=''))['copied'] == 2
 assert Path(serve(first['id']).path).parent == DATA_DIR / 'attachments'
 delete_record(note['id'])
 assert all(file['deleted_at'] for file in list_files()['attachments'])
@@ -108,12 +135,16 @@ assert all(file['record_id'] is None for file in list_files()['attachments'])
 backup = endpoint('/api/settings/full-backup', 'GET')()
 with ZipFile(backup.path) as archive:
     assert archive.testzip() is None
-    assert archive.read('attachments/' + first['id']) == b'example bytes'
+    assert archive.read('attachments/' + stored_name(first)) == b'example bytes'
     Path('restored.db').write_bytes(archive.read('zhiji.db'))
 with sqlite3.connect('restored.db') as db:
     assert db.execute('SELECT count(*) FROM attachments').fetchone()[0] == 2
     assert db.execute('SELECT count(*) FROM attachment_storage').fetchone()[0] == 0
 backup.background.func()
+trash_attachment(second['id'])
+purge_attachment(second['id'])
+assert not (original_root / stored_name(second)).exists()
+assert not list_files(trash=True)['attachments']
 '''
             result = subprocess.run([sys.executable, '-X', 'utf8', '-c', program], cwd=folder,
                                     capture_output=True, text=True, encoding='utf-8', timeout=30)
