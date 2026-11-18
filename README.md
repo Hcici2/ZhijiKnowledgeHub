@@ -16,3 +16,7 @@
 ## 开发验证
 
 前端在 `frontend` 中运行 `npm ci`、`npm run build` 和 `node --test tests/*.test.mjs`。后端在 `preview-backend` 中安装 `requirements.txt` 后运行 `python -m unittest test_attachments test_batch_organize`。
+
+## 许可证
+
+本项目使用 [MIT 许可证](LICENSE)。
