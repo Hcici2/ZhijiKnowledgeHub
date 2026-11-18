@@ -45,6 +45,17 @@ def complete(coroutine):
     raise AssertionError('test upload unexpectedly blocked')
 
 upload = endpoint('/api/attachments', 'POST')
+from types import SimpleNamespace
+from main import protect_browser_requests
+from fastapi.responses import JSONResponse
+
+async def accepted(request):
+    return JSONResponse({'ok': True})
+
+for origin, expected in [('http://127.0.0.1:18766', 200), ('https://example.test', 403)]:
+    request = SimpleNamespace(url=SimpleNamespace(path='/api/auth/setup'), method='POST', headers={'origin': origin})
+    assert complete(protect_browser_requests(request, accepted)).status_code == expected
+
 list_files = endpoint('/api/attachments', 'GET')
 serve = endpoint('/api/attachments/{key}/file', 'GET')
 migrate = endpoint('/api/settings/attachment-storage', 'PUT')

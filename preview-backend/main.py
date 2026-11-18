@@ -63,7 +63,8 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost
 async def protect_browser_requests(request: Request, call_next):
     if request.url.path.startswith("/api/") and request.method not in {"GET", "HEAD", "OPTIONS"}:
         if request.headers.get("origin") not in {
-            "http://127.0.0.1:8765", "http://localhost:5173", "http://127.0.0.1:5173"
+            "http://127.0.0.1:8765", "http://localhost:5173", "http://127.0.0.1:5173",
+            "http://127.0.0.1:18766",
         } or request.headers.get("sec-fetch-site") == "cross-site":
             return JSONResponse({"detail": "请从本机知己页面操作。"}, status_code=403)
     response = await call_next(request)

@@ -4,7 +4,7 @@
 
 ## Windows 上使用
 
-1. 安装 [Python 3.13](https://www.python.org/downloads/windows/)（启用 Python Launcher）和 [Node.js 24](https://nodejs.org/en/download)。
+1. 安装 [Python 3.13](https://www.python.org/downloads/windows/)（勾选 Add Python to PATH）和 [Node.js 24](https://nodejs.org/en/download)。
 2. 下载仓库 ZIP 并完整解压到一个自己有写入权限的文件夹，也可以用 Git 克隆仓库。
 3. 双击 `Start-Zhiji.cmd`。脚本会联网安装依赖并构建前端。
 4. 看到服务启动后，在浏览器打开 [知己](http://127.0.0.1:18766/)，按提示设置自己的登录密码。使用期间保留启动窗口，退出时按 Ctrl+C。

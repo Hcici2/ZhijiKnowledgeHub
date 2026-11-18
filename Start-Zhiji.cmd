@@ -1,18 +1,23 @@
 @echo off
 setlocal
 cd /d "%~dp0" || exit /b 1
-where py.exe >nul 2>nul
-if errorlevel 1 (
-    echo Install Python 3.13 for Windows with the Python launcher enabled.
-    goto failed
-)
 where npm.cmd >nul 2>nul
 if errorlevel 1 (
     echo Install Node.js 24 and reopen this file.
     goto failed
 )
 if not exist "preview-backend\.venv\Scripts\python.exe" (
-    py.exe -3.13 -m venv "preview-backend\.venv" || goto failed
+    py.exe -3.13 -c "import sys" >nul 2>nul
+    if errorlevel 1 (
+        python.exe -c "import sys; sys.exit(sys.version_info[:2] != (3, 13))" >nul 2>nul
+        if errorlevel 1 (
+            echo Install Python 3.13 and enable Add Python to PATH.
+            goto failed
+        )
+        python.exe -m venv "preview-backend\.venv" || goto failed
+    ) else (
+        py.exe -3.13 -m venv "preview-backend\.venv" || goto failed
+    )
 )
 "preview-backend\.venv\Scripts\python.exe" -m pip install --disable-pip-version-check -r "preview-backend\requirements.txt" || goto failed
 pushd frontend || goto failed
