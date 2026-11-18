@@ -419,3 +419,7 @@ state.libraryMode.value = 'list'
 assert.equal(state.splitReader.value, true)
 state.libraryMode.value = 'calendar'
 assert.equal(state.splitReader.value, false)
+state.libraryMode.value = 'list'
+state.recordScrollRegion.value = { scrollTop: 340 }
+await state.restartList()
+assert.equal(state.recordScrollRegion.value.scrollTop, 340)

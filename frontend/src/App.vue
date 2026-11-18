@@ -616,6 +616,7 @@ const categoryLabel = (category: string) => category === 'AI工具' ? 'AI 工具
 
 // 保存从数据库读取的记录
 const records = ref<KnowledgeRecord[]>([])
+const loadedRecordView = ref<RecordView | null>(null)
 
 // 实时统计记录数量
 const recordCount = computed(() => records.value.length)
@@ -843,7 +844,6 @@ const recordScrollRegion = ref<HTMLElement | null>(null)
 
 function restartList() {
   currentPage.value = 1
-  if (recordScrollRegion.value) recordScrollRegion.value.scrollTop = 0
   return loadRecords()
 }
 
@@ -1302,6 +1302,7 @@ async function loadRecords() {
     // 只使用最近一次请求的结果。
     if (request === latestRequest) {
       records.value = data.records.map(formatRecord)
+      loadedRecordView.value = activeView.value
       currentPage.value = data.page
       totalRecords.value = data.total
       const visible = new Set(data.records.map(record => record.id))
@@ -2257,6 +2258,9 @@ const linkedRecord = ref<KnowledgeRecord | null>(null)
 
 
 const readerListIndex = computed(() => records.value.findIndex(record => record.id === linkedRecord.value?.id))
+const readerOutsideCurrentPage = computed(() =>
+  splitReader.value && !isLoading.value && !listError.value && linkedRecord.value !== null && readerListIndex.value < 0
+)
 
 async function browseAdjacentNote(direction: -1 | 1) {
   const index = readerListIndex.value
@@ -3550,7 +3554,7 @@ onUnmounted(() => {
           <div class="recent-heading">
             <div class="library-heading">
               <h1>{{ viewDetails.label }}</h1>
-              <div v-if="calendarVisible || (!isLoading && !listError)" class="section-description">{{ calendarVisible && isLoading ? '正在读取…' : totalRecords + ' 条笔记' }}</div>
+              <div class="section-description">{{ totalRecords }} 条笔记</div>
             </div>
             <div v-if="activeView === 'library'" class="library-segment" aria-label="知识库视图">
               <button type="button" :aria-pressed="!calendarVisible" @click="changeLibraryMode('list')">列表</button>
@@ -3725,16 +3729,16 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div ref="recordScrollRegion" class="workspace-scroll-region" role="region" aria-label="笔记列表" tabindex="0">
-          <p v-if="isLoading" class="search-result-tip" role="status">正在读取记录…</p>
-          <p v-else-if="listError" class="search-error" role="alert">{{ listError }}</p>
-          <p v-else-if="activeKeyword || selectedCategory" class="search-result-tip" role="status">
+          <p v-if="isLoading" class="library-loading-status" role="status">正在更新列表…</p>
+          <div ref="recordScrollRegion" class="workspace-scroll-region library-scroll-region" role="region" aria-label="笔记列表" :aria-busy="isLoading" tabindex="0">
+          <p v-if="listError" class="search-error" role="alert">{{ listError }}</p>
+          <p v-if="activeKeyword || selectedCategory" class="search-result-tip" role="status">
             {{ selectedCategory ? categoryLabel(selectedCategory) + ' · ' : '' }}
             {{ activeKeyword ? '搜索「' + activeKeyword + '」 · ' : '' }}
             找到 {{ totalRecords }} 条记录
           </p>
 
-          <div v-show="!isLoading && !listError">
+          <div v-if="loadedRecordView === activeView || (!isLoading && !listError)">
             <div v-if="activeView === 'library' && recordCount" class="batch-controls">
               <button type="button" class="search-clear" :disabled="batchMoveBusy" @click="toggleBatchMove">
                 {{ batchMoveIsActive ? '退出批量管理' : '批量管理' }}
@@ -3881,7 +3885,7 @@ onUnmounted(() => {
               <span>第 {{ currentPage }} / {{ pageCount }} 页</span>
               <button type="button" class="search-clear" :disabled="currentPage >= pageCount" @click="changePage(currentPage + 1)">下一页</button>
             </nav>
-            <div v-if="recordCount === 0" class="empty-state">
+            <div v-if="recordCount === 0 && !isLoading && !listError" class="empty-state">
               <template v-if="activeLibraryFilters.length">
                 <p>没有符合当前筛选的笔记。</p>
                 <p>{{ activeLibraryFilters.map(filter => filter.label).join(' · ') }}</p>
@@ -4136,6 +4140,7 @@ onUnmounted(() => {
         <p v-if="linkLoading && !linkedRecord" role="status">正在读取记录…</p>
         <p v-if="linkError" class="search-error" role="alert">{{ linkError }}</p>
         <div v-if="linkedRecord" class="note-reader-main">
+          <p v-if="readerOutsideCurrentPage" class="reader-context-status" role="status">这篇笔记不在当前列表页，仍可继续阅读。</p>
           <nav v-if="editingId === null && readerListIndex >= 0 && records.length > 1 && !batchMoveIsActive" class="reader-page-navigation" aria-label="浏览本页笔记">
             <button type="button" class="note-toolbar-text" :aria-disabled="linkLoading || readerListIndex === 0" @click="browseAdjacentNote(-1)">‹ 上一条</button>
             <span role="status">本页 {{ readerListIndex + 1 }} / {{ records.length }}</span>
@@ -7135,7 +7140,21 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
   grid-template-columns: minmax(330px, 2fr) minmax(390px, 3fr);
   gap: var(--workspace-gap);
 }
-.library-card { border-radius: var(--workspace-radius); }
+.library-card { border-radius: var(--workspace-radius); position: relative; }
+.library-scroll-region { overflow-anchor: none; }
+.library-loading-status {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding-inline: 8px;
+  border-radius: 7px;
+  color: var(--note-muted);
+  background: var(--note-field);
+  pointer-events: none;
+}
+.reader-context-status { padding: 8px 12px; background: var(--note-field); color: var(--note-muted); border-radius: 8px; }
 .calendar-record-layout { align-items: start; gap: var(--workspace-gap); }
 .calendar-record-layout > :deep(.calendar) { min-width: 0; }
 .calendar-record-layout .library-record-results { min-width: 0; }
