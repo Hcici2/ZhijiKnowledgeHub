@@ -1365,7 +1365,11 @@ const attachmentStoragePath = ref('')
 const attachmentDefaultPath = ref('')
 const attachmentPathInput = ref('')
 const attachmentStorageBusy = ref(false)
+const attachmentStorageLoading = ref(false)
 const attachmentStorageStatus = ref('')
+const attachmentStorageLabel = computed(() =>
+  attachmentStorageLoading.value ? '正在读取…' : attachmentStoragePath.value || '未能读取'
+)
 
 function attachmentType(name: string) {
   if (/\.(png|jpe?g|gif|webp)$/i.test(name)) return '图片'
@@ -1388,7 +1392,10 @@ async function attachmentRequest(url: string, options?: RequestInit) {
   const response = await recordsRequest(url, options)
   if (!response.ok) {
     const result = await response.json().catch(() => ({}))
-    throw new Error(response.status === 404 ? '附件功能暂不可用，请检查存储或重启知己后台。' : typeof result.detail === 'string' ? result.detail : '附件操作失败，请重试。')
+    if (response.status === 404 && result.detail === 'Not Found') {
+      throw new Error('当前后台未提供附件接口。请重启知己预览后重试。')
+    }
+    throw new Error(typeof result.detail === 'string' ? result.detail : '附件操作失败，请重试。')
   }
   return response.json()
 }
@@ -1434,6 +1441,8 @@ async function loadAttachmentLibrary() {
   } finally { libraryAttachmentsLoading.value = false }
 }
 async function loadAttachmentStorage() {
+  if (attachmentStorageLoading.value || attachmentStorageBusy.value) return
+  attachmentStorageLoading.value = true
   attachmentStorageStatus.value = ''
   try {
     const result = await attachmentRequest('/api/settings/attachment-storage')
@@ -1441,6 +1450,8 @@ async function loadAttachmentStorage() {
     attachmentDefaultPath.value = result.default_path
   } catch (error) {
     attachmentStorageStatus.value = error instanceof Error ? error.message : '无法读取存储设置。'
+  } finally {
+    attachmentStorageLoading.value = false
   }
 }
 async function changeAttachmentStorage(useDefault = false) {
@@ -3015,12 +3026,13 @@ onUnmounted(() => {
 
           <section class="settings-section">
             <h2>附件存储</h2>
-            <p class="section-description">当前目录：{{ attachmentStoragePath || '正在读取…' }}</p>
+            <p class="section-description">当前目录：{{ attachmentStorageLabel }}</p>
+            <button v-if="!attachmentStoragePath && !attachmentStorageLoading && attachmentStorageStatus" type="button" class="search-clear" @click="loadAttachmentStorage">重新读取</button>
             <form class="settings-fields" @submit.prevent="changeAttachmentStorage()">
               <label class="attachment-path-field">本地文件夹路径
                 <input v-model="attachmentPathInput" class="category-filter" maxlength="1024" placeholder="例如 D:\知己附件" :disabled="attachmentStorageBusy" />
               </label>
-              <button class="search-submit" :disabled="attachmentStorageBusy || !attachmentPathInput.trim() || attachmentPathInput.trim() === attachmentStoragePath">迁移并切换</button>
+              <button class="search-submit" :disabled="attachmentStorageBusy || !attachmentStoragePath || !attachmentPathInput.trim() || attachmentPathInput.trim() === attachmentStoragePath">迁移并切换</button>
               <button type="button" class="search-clear" :disabled="attachmentStorageBusy || !attachmentDefaultPath || attachmentDefaultPath === attachmentStoragePath" @click="changeAttachmentStorage(true)">使用默认目录</button>
             </form>
             <p class="section-description">可在资源管理器中复制文件夹路径再粘贴。切换前会校验已复制的文件。</p>

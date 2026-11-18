@@ -155,4 +155,14 @@ state.attachmentLibrary.value = [{ name: '设计稿.pdf' }, { name: '设计稿.p
 state.attachmentQuery.value = '设计'
 state.attachmentKind.value = 'PDF'
 assert.deepEqual(state.visibleAttachments.value.map(file => file.name), ['设计稿.pdf'])
+globalThis.fetch = async () => ({ ok: false, status: 404, json: async () => ({ detail: 'Not Found' }) })
+const storageRead = state.loadAttachmentStorage()
+assert.equal(state.attachmentStorageLabel.value, '正在读取…')
+await storageRead
+assert.equal(state.attachmentStorageLabel.value, '未能读取')
+assert.match(state.attachmentStorageStatus.value, /未提供附件接口/)
+globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ path: 'D:/知己附件', default_path: 'C:/知己附件' }) })
+await state.loadAttachmentStorage()
+assert.equal(state.attachmentStorageLabel.value, 'D:/知己附件')
+assert.equal(state.attachmentStorageStatus.value, '')
 console.log('PASS: reader actions, filter reset and saved search shortcuts')
