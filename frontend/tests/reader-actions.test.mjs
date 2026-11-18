@@ -412,3 +412,10 @@ await state.linkAttachmentToNote(state.attachmentNoteResults.value[0])
 assert.equal(state.unlinkedAttachmentCount.value, 0)
 assert.deepEqual(state.attachmentsToLink.value, [])
 assert.deepEqual(state.selectedAttachmentIds.value, [])
+state.activeView.value = 'library'
+state.wideScreen.value = true
+state.detailOpen.value = true
+state.libraryMode.value = 'list'
+assert.equal(state.splitReader.value, true)
+state.libraryMode.value = 'calendar'
+assert.equal(state.splitReader.value, false)

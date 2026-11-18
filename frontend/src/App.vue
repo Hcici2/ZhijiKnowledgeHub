@@ -296,6 +296,11 @@ const views = [
 ] as const
 type RecordView = typeof views[number]['id']
 const sidebarViews = views.filter(view => view.id !== 'recent')
+const sidebarGroups = [
+  { label: '知识空间', ids: ['inbox', 'library', 'web', 'attachments'] },
+  { label: '快捷访问', ids: ['pinned', 'tasks'] },
+  { label: '系统', ids: ['trash', 'settings'] },
+].map(group => ({ label: group.label, items: group.ids.map(id => sidebarViews.find(view => view.id === id)!) }))
 
 interface SavedSearch {
   id: number
@@ -2246,9 +2251,7 @@ const linkDialog = ref<HTMLDialogElement | null>(null)
 const readerHost = ref<HTMLElement | null>(null)
 const detailOpen = ref(false)
 const wideScreen = ref(false)
-const splitReader = computed(() => wideScreen.value && detailOpen.value && activeView.value !== 'settings' && activeView.value !== 'tasks' && activeView.value !== 'attachments')
-const splitCalendarControls = ref<'calendar' | 'filters' | null>(null)
-watch(splitReader, () => { splitCalendarControls.value = null })
+const splitReader = computed(() => wideScreen.value && detailOpen.value && !calendarVisible.value && activeView.value !== 'settings' && activeView.value !== 'tasks' && activeView.value !== 'attachments')
 const showNoteLinks = ref(false)
 const linkedRecord = ref<KnowledgeRecord | null>(null)
 
@@ -2551,7 +2554,7 @@ function updateReaderWidth() {
   wideScreen.value = readerMedia?.matches ?? false
 }
 
-watch(wideScreen, async () => {
+watch(splitReader, async () => {
   await nextTick()
   if (!detailOpen.value) return
   const dialog = linkDialog.value
@@ -3185,10 +3188,11 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="nav-caption">工作空间</div>
+      <template v-for="group in sidebarGroups" :key="group.label">
+      <div class="nav-caption">{{ group.label }}</div>
 
       <button
-        v-for="view in sidebarViews"
+        v-for="view in group.items"
         :key="view.id"
         type="button"
         class="nav-item view-button"
@@ -3201,7 +3205,7 @@ onUnmounted(() => {
         <AppIcon class="nav-icon" :name="view.id" />
         <span>{{ view.label }}</span>
       </button>
-      <div class="sidebar-footnote">让想法有处安放</div>
+      </template>
     </aside>
 
     <!-- 右侧主工作区 -->
@@ -3591,7 +3595,7 @@ onUnmounted(() => {
           <p v-if="recordActionError" class="search-error" role="alert">{{ recordActionError }}</p>
 
           <div class="library-record-layout" :class="{ 'calendar-record-layout': calendarVisible }">
-            <NoteCalendar v-if="calendarVisible" v-show="!splitReader || splitCalendarControls === 'calendar'" :selected-day="selectedDay" :today="todayKey"
+            <NoteCalendar v-if="calendarVisible" :selected-day="selectedDay" :today="todayKey"
               :counts="calendarCounts" :counting="calendarLoading" :error="calendarError" @select="selectCalendarDay" @today="selectCalendarToday" />
             <div class="library-record-results">
               <div v-if="calendarVisible" class="calendar-day-strip">
@@ -3611,12 +3615,6 @@ onUnmounted(() => {
                   </details>
                 </div>
               </div>
-              <div v-if="calendarVisible && splitReader" class="split-calendar-actions">
-                <button type="button" class="search-clear" :aria-expanded="splitCalendarControls === 'calendar'"
-                  @click="splitCalendarControls = splitCalendarControls === 'calendar' ? null : 'calendar'">月历</button>
-                <button type="button" class="search-clear" :aria-expanded="splitCalendarControls === 'filters'"
-                  @click="splitCalendarControls = splitCalendarControls === 'filters' ? null : 'filters'">搜索与筛选</button>
-              </div>
               <button v-if="calendarVisible" type="button" class="review-entry" @click="openDailyReview">
                 <AppIcon name="note" :size="18" />
                 <strong>每日回顾</strong>
@@ -3631,7 +3629,7 @@ onUnmounted(() => {
             </button>
             <button type="button" class="note-toolbar-text" :disabled="batchMoveBusy || batchBusy" @click="clearLibraryFilters">清除全部筛选</button>
           </div>
-          <div v-show="!calendarVisible || !splitReader || splitCalendarControls === 'filters'" class="library-filters">
+          <div class="library-filters">
             <form class="search-toolbar" @submit.prevent="searchRecords">
               <select
                 v-if="activeView !== 'inbox'"
@@ -3674,8 +3672,9 @@ onUnmounted(() => {
               </button>
             </form>
 
-            <div v-if="!calendarVisible" class="date-filter">
-              <button type="button" class="search-clear" :aria-expanded="datesOpen" @click="datesOpen = !datesOpen">按笔记日期筛选</button>
+            <button type="button" class="search-clear advanced-filters-toggle" :aria-expanded="datesOpen" aria-controls="advanced-library-filters" @click="datesOpen = !datesOpen">高级筛选</button>
+            <div v-show="datesOpen" id="advanced-library-filters" class="advanced-library-filters">
+            <div v-if="!calendarVisible && (appliedDateFrom || appliedDateTo)" class="date-filter">
               <span v-if="appliedDateFrom || appliedDateTo" class="search-result-tip">
                 {{ appliedDateFrom || '不限开始' }} 至 {{ appliedDateTo || '不限结束' }}
               </span>
@@ -3723,6 +3722,7 @@ onUnmounted(() => {
                 @click="resetSavedSearchForm">取消</button>
             </form>
             <p v-if="savedSearchError" class="search-error" role="alert">{{ savedSearchError }}</p>
+            </div>
           </div>
 
           <div ref="recordScrollRegion" class="workspace-scroll-region" role="region" aria-label="笔记列表" tabindex="0">
@@ -3812,9 +3812,9 @@ onUnmounted(() => {
                         <mark v-if="part.matched">{{ part.text }}</mark><template v-else>{{ part.text }}</template>
                       </template>
                     </button>
-                    <button v-if="!batchMoveIsActive" type="button" class="note-icon-button" aria-label="复制原文" title="复制原文"
+                    <button v-if="!batchMoveIsActive" type="button" class="note-icon-button record-secondary-action" aria-label="复制原文" title="复制原文"
                       @click="copyRecordText(record)"><AppIcon name="copy" :size="18" /></button>
-                    <button v-if="activeView !== 'trash' && !batchMoveIsActive" type="button" class="note-icon-button" aria-label="历史版本" title="历史版本"
+                    <button v-if="activeView !== 'trash' && !batchMoveIsActive" type="button" class="note-icon-button record-secondary-action" aria-label="历史版本" title="历史版本"
                       @click="openHistory(record)"><AppIcon name="recent" :size="18" /></button>
                     <div v-if="!batchMoveIsActive" class="record-quick-actions">
                       <template v-if="activeView === 'trash'">
@@ -3882,7 +3882,12 @@ onUnmounted(() => {
               <button type="button" class="search-clear" :disabled="currentPage >= pageCount" @click="changePage(currentPage + 1)">下一页</button>
             </nav>
             <div v-if="recordCount === 0" class="empty-state">
-              <template v-if="activeKeyword && selectedCategory">
+              <template v-if="activeLibraryFilters.length">
+                <p>没有符合当前筛选的笔记。</p>
+                <p>{{ activeLibraryFilters.map(filter => filter.label).join(' · ') }}</p>
+                <button type="button" class="search-clear" @click="clearLibraryFilters">清除筛选</button>
+              </template>
+              <template v-else-if="activeKeyword && selectedCategory">
                 当前分类没有匹配的记录，试试其他关键词或分类。
               </template>
               <template v-else-if="activeKeyword">没有找到匹配的记录，试试其他关键词。</template>
@@ -7041,69 +7046,6 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
   .library-list-card .library-filters { max-height: 36dvh; overflow-y: auto; }
   .tasks-page .task-batch-bar { max-height: 20dvh; overflow-y: auto; }
 }
-@media (min-width: 1024px) and (min-height: 620px) {
-  .note-workspace .library-card:has(.calendar-record-layout) {
-    display: flex;
-    flex-direction: column;
-    height: calc(100dvh - 128px);
-  }
-  .note-workspace:not(.is-split) .calendar-record-layout {
-    flex: 1 1 auto;
-    min-height: 0;
-    align-items: stretch;
-    grid-template-rows: minmax(0, 1fr);
-  }
-  .note-workspace:not(.is-split) .calendar-record-layout > :first-child {
-    align-self: start;
-    max-height: 100%;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
-  }
-  .note-workspace:not(.is-split) .calendar-record-layout .library-record-results {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-  .calendar-record-layout .library-record-results > :not(.workspace-scroll-region) { flex-shrink: 0; }
-  .calendar-record-layout .daily-review { max-height: 24dvh; overflow-y: auto; }
-  .calendar-record-layout .workspace-scroll-region {
-    min-height: 88px;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
-    scrollbar-gutter: stable;
-    padding: 0 6px 6px 2px;
-  }
-  .note-workspace.is-split .library-card { position: sticky; top: 84px; }
-  .note-workspace.is-split .calendar-record-layout,
-  .note-workspace.is-split .calendar-record-layout .library-record-results {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    min-height: 0;
-  }
-  .note-workspace.is-split .calendar-record-layout { gap: 10px; }
-  .note-workspace.is-split .calendar-record-layout > :deep(.calendar) {
-    flex: 0 1 auto;
-    min-height: 64px;
-    max-height: min(330px, 32dvh);
-    overflow: auto;
-    overscroll-behavior-y: contain;
-    padding: 8px;
-  }
-  .note-workspace.is-split .calendar-record-layout :deep(.calendar-grid) { gap: 3px; }
-  .note-workspace.is-split .calendar-record-layout :deep(.calendar-day) {
-    min-height: 32px;
-    padding: 2px;
-    aspect-ratio: auto;
-  }
-  .note-workspace.is-split .calendar-record-layout :deep(.calendar-toolbar) { margin-bottom: 4px; }
-  .note-workspace.is-split .calendar-record-layout .library-filters { max-height: 23dvh; overflow-y: auto; }
-  .note-workspace.is-split .library-card .recent-heading { margin-bottom: 20px; }
-  .note-workspace.is-split .library-card { padding-inline: clamp(18px, 1.65vw, 26px); }
-}
-.split-calendar-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 12px; }
-.split-calendar-actions [aria-expanded="true"] { background: #f4ead6; }
-.note-workspace.is-split .calendar-record-layout .workspace-scroll-region { border-top: 1px solid var(--note-border); margin-top: 12px; }
 </style>
 <style scoped>
 .record-item.batch-record-active { cursor: pointer; user-select: none; }
@@ -7135,7 +7077,7 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
 .library-card:has(.calendar-record-layout) { overflow-anchor: none; }
 .calendar-record-layout .workspace-scroll-region { overflow-anchor: none; }
 .calendar-day-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
-.calendar-day-actions .search-clear { min-height: 34px; padding-inline: 9px; }
+.calendar-day-actions .search-clear { min-height: 34px; padding-inline: 9px; width: auto; flex: none; white-space: nowrap; }
 .calendar-date-jump { position: relative; }
 .calendar-date-jump summary { list-style: none; display: flex; align-items: center; gap: 6px; cursor: pointer; font-variant-numeric: tabular-nums; }
 .calendar-date-jump summary::-webkit-details-marker { display: none; }
@@ -7183,4 +7125,53 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
 .note-attachment-section { margin-bottom: 16px; }
 .note-attachment-section h3 { font-size: 15px; margin-bottom: 4px; }
 .note-attachment-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.app-shell {
+  --workspace-gap: clamp(14px, 1.6vw, 24px);
+  --workspace-radius: 16px;
+}
+.content { width: 100%; max-width: 1700px; }
+.content.split-content { max-width: 1850px; }
+.note-workspace.is-split {
+  grid-template-columns: minmax(330px, 2fr) minmax(390px, 3fr);
+  gap: var(--workspace-gap);
+}
+.library-card { border-radius: var(--workspace-radius); }
+.calendar-record-layout { align-items: start; gap: var(--workspace-gap); }
+.calendar-record-layout > :deep(.calendar) { min-width: 0; }
+.calendar-record-layout .library-record-results { min-width: 0; }
+.library-list-card .library-filters { max-height: none; overflow: visible; }
+.advanced-filters-toggle { margin-top: 8px; }
+.advanced-library-filters {
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--note-field);
+  border: 1px solid var(--note-border);
+  border-radius: 10px;
+}
+.advanced-library-filters > :first-child { margin-top: 0; }
+.record-item .record-excerpt {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.record-item.record-selected { background: #f7efdd; }
+.note-paper .linked-content { max-width: 72ch; }
+.compose-dialog .writing-tools { gap: 4px; flex-wrap: wrap; }
+.compose-dialog .capture-footer button[type="submit"] { min-height: 40px; }
+@media (hover: hover) and (pointer: fine) {
+  .record-secondary-action { opacity: .55; }
+  .record-item:hover .record-secondary-action,
+  .record-item:focus-within .record-secondary-action { opacity: 1; }
+}
+@media (max-width: 760px) {
+  .calendar-record-layout { grid-template-columns: minmax(0, 1fr); }
+  .library-filters .search-toolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .library-filters .search-input-wrap { grid-column: 1 / -1; grid-row: 1; min-width: 0; }
+  .library-filters .search-submit { grid-column: 1 / -1; }
+}
 </style>
