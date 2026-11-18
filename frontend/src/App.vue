@@ -405,7 +405,7 @@ function categoryChanged() {
 const activeView = ref<RecordView>('library')
 const viewDetails = computed(() => views.find(view => view.id === activeView.value) ?? views[1])
 
-function openView(view: RecordView, noteDay?: string) {
+function openView(view: RecordView, noteFilter?: { day: string } | { category: string } | { tag: string }) {
   if (batchMoveBusy.value) return
   if (taskBatchBusy.value || activeTaskRequests.value.size) return
   if (!detailOpen.value && editingTaskId.value !== null && !window.confirm('待办还有未保存的修改，确定离开吗？')) return
@@ -426,13 +426,19 @@ function openView(view: RecordView, noteDay?: string) {
   selectedTag.value = ''
   selectedCategory.value = ''
   cancelEdit()
-  if (view === 'library' && noteDay) {
+  if (view === 'library' && noteFilter) {
     searchQuery.value = ''
     activeKeyword.value = ''
-    todayKey.value = localDateKey()
-    if (noteDay.slice(0, 7) !== selectedDay.value.slice(0, 7)) calendarCounts.value = {}
-    selectedDay.value = noteDay
-    libraryMode.value = 'calendar'
+    if ('day' in noteFilter) {
+      todayKey.value = localDateKey()
+      if (noteFilter.day.slice(0, 7) !== selectedDay.value.slice(0, 7)) calendarCounts.value = {}
+      selectedDay.value = noteFilter.day
+      libraryMode.value = 'calendar'
+    } else {
+      libraryMode.value = 'list'
+      if ('category' in noteFilter) selectedCategory.value = noteFilter.category
+      else selectedTag.value = noteFilter.tag
+    }
   }
   if (view === 'tasks') {
     ++latestRequest
@@ -1529,7 +1535,7 @@ async function togglePin(record: KnowledgeRecord) {
 
 function viewNoteDay(record: KnowledgeRecord) {
   const day = record.noteDate || record.createdDay
-  if (!record.deletedAt && /^\d{4}-\d{2}-\d{2}$/.test(day)) return openView('library', day)
+  if (!record.deletedAt && /^\d{4}-\d{2}-\d{2}$/.test(day)) return openView('library', { day })
 }
 
 const settingsOverview = ref<{ active: number, inbox: number, pinned: number, trash: number } | null>(null)
@@ -3463,7 +3469,10 @@ onUnmounted(() => {
               <header class="note-paper-header">
                 <h3 class="note-detail-title">{{ linkedRecord.title }}</h3>
                 <div class="record-meta note-detail-meta">
-                  <span class="record-category">{{ categoryLabel(linkedRecord.category) }}</span>
+                  <span v-if="linkedRecord.deletedAt" class="record-category">{{ categoryLabel(linkedRecord.category) }}</span>
+                  <button v-else type="button" class="record-category note-toolbar-text reader-meta-filter"
+                    :title="'查看分类：' + categoryLabel(linkedRecord.category)"
+                    @click="openView('library', { category: linkedRecord.category })">{{ categoryLabel(linkedRecord.category) }}</button>
                   <span v-if="linkedRecord.deletedAt && linkedRecord.noteDate && linkedRecord.noteDate !== linkedRecord.createdDay">
                     笔记日期 {{ linkedRecord.noteDate }}
                   </span>
@@ -3476,7 +3485,11 @@ onUnmounted(() => {
                     <AppIcon name="pinned" :size="14" />{{ linkedRecord.pinned ? '已置顶' : '置顶' }}
                   </button>
                   <span :title="'创建于 ' + linkedRecord.time">{{ linkedRecord.time }}</span>
-                  <span v-for="tag in linkedRecord.tags" :key="tag" class="record-tag">{{ tag }}</span>
+                  <template v-for="tag in linkedRecord.tags" :key="tag">
+                    <span v-if="linkedRecord.deletedAt" class="record-tag">{{ tag }}</span>
+                    <button v-else type="button" class="record-tag note-toolbar-text reader-meta-filter" :title="'查看标签：' + tag"
+                      @click="openView('library', { tag })">{{ tag }}</button>
+                  </template>
                 </div>
               </header>
               <p class="reading-statistics">{{ readingCharacters }} 字符 · 预计阅读 {{ readingMinutes }} 分钟</p>
@@ -6297,6 +6310,8 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
 .reader-page-navigation [aria-disabled="true"] { opacity: .45; cursor: default; }
 .reader-meta-action { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 3px 6px; }
 .reader-meta-action[aria-pressed="true"] { background: #f4ead6; }
+.reader-meta-filter { white-space: normal; overflow-wrap: anywhere; }
+.reader-meta-filter:hover { background: #eee2ca; }
 </style>
 <style scoped>
 .draft-continue-button { background: #f4ead6; color: #76511c; cursor: pointer; }
