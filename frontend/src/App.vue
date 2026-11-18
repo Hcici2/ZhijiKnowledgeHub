@@ -1182,10 +1182,13 @@ function toggleBatchRecord(id: number) {
     : [...batchIds.value, id]
 }
 
-async function trashSelectedRecords(restore = false) {
-  const ids = records.value.filter(record => batchIds.value.includes(record.id)).map(record => record.id)
-  if (!(restore ? activeView.value === 'trash' : batchMoveIsActive.value) || batchMoveBusy.value || isLoading.value || !ids.length) return
-  if (!restore && !window.confirm(`将选中的 ${ids.length} 条笔记移入回收站？`)) return
+async function trashSelectedRecords(action: boolean | 'purge' = false) {
+  const restore = action === true
+  const purge = action === 'purge'
+  const ids = records.value.filter(record => batchIds.value.includes(record.id) && (!purge || record.deletedAt)).map(record => record.id)
+  if (!(restore || purge ? activeView.value === 'trash' : batchMoveIsActive.value) || batchMoveBusy.value || isLoading.value || !ids.length) return
+  if (purge && !window.confirm(`永久删除选中的 ${ids.length} 条笔记？删除后无法恢复。`)) return
+  if (action === false && !window.confirm(`将选中的 ${ids.length} 条笔记移入回收站？`)) return
   batchMoveBusy.value = true
   batchMoveStatus.value = ''
   batchMoveError.value = ''
@@ -1195,14 +1198,15 @@ async function trashSelectedRecords(restore = false) {
     for (const id of ids) {
       if (authState.value !== 'ready') break
       try {
-        const response = await recordsRequest('/api/records/' + id + (restore ? '/restore' : ''), { method: restore ? 'POST' : 'DELETE' })
+        const response = await recordsRequest('/api/records/' + id + (restore ? '/restore' : purge ? '/trash' : ''), { method: restore ? 'POST' : 'DELETE' })
         if (response.ok) moved.add(id)
       } catch { /* Keep unconfirmed records selected for retry. */ }
     }
     if (authState.value !== 'ready') return
     batchIds.value = batchIds.value.filter(id => !moved.has(id))
-    if (moved.size) batchMoveStatus.value = restore ? `已恢复 ${moved.size} 条笔记。` : `已将 ${moved.size} 条笔记移入回收站。`
-    if (moved.size < ids.length) batchMoveError.value = `有 ${ids.length - moved.size} 条笔记未确认${restore ? '恢复' : '移入'}，请检查列表后重试。`
+    if (purge && linkedRecord.value && moved.has(linkedRecord.value.id)) closeActiveReader()
+    if (moved.size) batchMoveStatus.value = restore ? `已恢复 ${moved.size} 条笔记。` : purge ? `已永久删除 ${moved.size} 条笔记。` : `已将 ${moved.size} 条笔记移入回收站。`
+    if (moved.size < ids.length) batchMoveError.value = `有 ${ids.length - moved.size} 条笔记操作未完成，请检查列表后重试。`
     await loadRecords()
   } finally {
     batchMoveBusy.value = false
@@ -2048,20 +2052,25 @@ const recordActionStatus = ref('')
 const recordActionError = ref('')
 const pendingRecordActions = ref(new Set<number>())
 
-async function changeTrashState(record: KnowledgeRecord, restore: boolean) {
-  if (pendingRecordActions.value.has(record.id)) return
+async function changeTrashState(record: KnowledgeRecord, action: boolean | 'purge') {
+  const restore = action === true
+  const purge = action === 'purge'
+  if (batchMoveBusy.value || pendingRecordActions.value.has(record.id)) return
+  if (purge && (!record.deletedAt || !window.confirm(`永久删除笔记「${record.title}」？删除后无法恢复。`))) return
   pendingRecordActions.value.add(record.id)
   recordActionStatus.value = ''
   recordActionError.value = ''
   try {
-    const url = '/api/records/' + record.id + (restore ? '/restore' : '')
+    const url = '/api/records/' + record.id + (restore ? '/restore' : purge ? '/trash' : '')
     const response = await recordsRequest(url, { method: restore ? 'POST' : 'DELETE' })
     if (!response.ok) {
       const data = await response.json()
       throw new Error(typeof data.detail === 'string' ? data.detail : '操作失败，请重试。')
     }
     if (editingId.value === record.id) cancelEdit()
-    recordActionStatus.value = restore ? '已恢复到原分类。' : '已移到回收站。'
+    if (purge && linkedRecord.value?.id === record.id) closeActiveReader()
+    if (purge) batchIds.value = batchIds.value.filter(id => id !== record.id)
+    recordActionStatus.value = restore ? '已恢复到原分类。' : purge ? '笔记已永久删除。' : '已移到回收站。'
     await loadRecords()
   } catch (error) {
     if (authState.value === 'ready') {
@@ -3565,6 +3574,9 @@ onUnmounted(() => {
               <button type="button" class="search-submit" :disabled="batchMoveBusy || !batchIds.length" @click="trashSelectedRecords(true)">
                 恢复所选{{ batchIds.length ? '（' + batchIds.length + ' 条）' : '' }}
               </button>
+              <button type="button" class="search-clear batch-trash-button" :disabled="batchMoveBusy || !batchIds.length" @click="trashSelectedRecords('purge')">
+                永久删除所选
+              </button>
             </div>
             <p v-if="(activeView === 'library' || activeView === 'trash') && batchMoveStatus" class="search-result-tip" role="status">{{ batchMoveStatus }}
               <button v-if="batchMovedTo" type="button" class="note-toolbar-text" @click="viewBatchDestination">查看目标日期</button>
@@ -3606,8 +3618,12 @@ onUnmounted(() => {
                     <button v-if="activeView !== 'trash' && !batchMoveIsActive" type="button" class="note-icon-button" aria-label="历史版本" title="历史版本"
                       @click="openHistory(record)"><AppIcon name="recent" :size="18" /></button>
                     <div v-if="!batchMoveIsActive" class="record-quick-actions">
-                      <button v-if="activeView === 'trash'" type="button" class="record-action-button edit-button"
-                        :disabled="batchMoveBusy || pendingRecordActions.has(record.id)" @click="changeTrashState(record, true)">恢复</button>
+                      <template v-if="activeView === 'trash'">
+                        <button type="button" class="record-action-button edit-button"
+                          :disabled="batchMoveBusy || pendingRecordActions.has(record.id)" @click="changeTrashState(record, true)">恢复</button>
+                        <button type="button" class="record-action-button batch-trash-button"
+                          :disabled="batchMoveBusy || pendingRecordActions.has(record.id)" @click="changeTrashState(record, 'purge')">永久删除</button>
+                      </template>
                       <details v-else class="record-more" @mouseleave="closeMoreMenu" @keydown.esc.stop="closeMoreMenu">
                         <summary class="note-icon-button" title="更多操作" aria-label="更多操作"><AppIcon name="more" :size="18" /></summary>
                         <div class="record-more-actions">

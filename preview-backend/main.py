@@ -607,6 +607,18 @@ def restore_record(record_id: int):
     return {"success": True, "restored_id": record_id}
 
 
+@app.delete("/api/records/{record_id}/trash", dependencies=[Depends(require_session)])
+def permanently_delete_record(record_id: int):
+    with get_db() as conn:
+        cursor = conn.execute(
+            "DELETE FROM records WHERE id = ? AND deleted_at IS NOT NULL",
+            (record_id,),
+        )
+        if cursor.rowcount == 0:
+            raise HTTPException(404, "只能永久删除回收站里的笔记。")
+    return {"success": True, "deleted_id": record_id}
+
+
 def is_web_url(content: str) -> bool:
     value = content.strip()
     if any(char.isspace() or ord(char) < 32 or char == chr(92) for char in value):

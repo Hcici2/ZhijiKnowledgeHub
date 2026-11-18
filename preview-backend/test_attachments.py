@@ -17,7 +17,7 @@ import sqlite3
 from pathlib import Path
 from zipfile import ZipFile
 from fastapi import HTTPException
-from main import app, create_record, update_record, delete_record, restore_record, get_db, RecordCreate, RecordUpdate, DATA_DIR, DB_PATH, require_session
+from main import app, create_record, update_record, delete_record, restore_record, permanently_delete_record, get_db, RecordCreate, RecordUpdate, DATA_DIR, DB_PATH, require_session
 from attachments import StorageLocation, attachment_router, stored_name
 import attachments
 
@@ -130,8 +130,14 @@ delete_record(note['id'])
 assert all(file['deleted_at'] for file in list_files()['attachments'])
 restore_record(note['id'])
 assert all(not file['deleted_at'] for file in list_files(note['id'])['attachments'])
-with get_db() as db:
-    db.execute('DELETE FROM records WHERE id=?', [note['id']])
+try:
+    permanently_delete_record(note['id'])
+except HTTPException as error:
+    assert error.status_code == 404
+else:
+    raise AssertionError('active note was permanently deleted')
+delete_record(note['id'])
+assert permanently_delete_record(note['id'])['deleted_id'] == note['id']
 assert all(file['record_id'] is None for file in list_files()['attachments'])
 backup = endpoint('/api/settings/full-backup', 'GET')()
 with ZipFile(backup.path) as archive:

@@ -272,4 +272,25 @@ assert.deepEqual(picker.visible.value, [])
 picker.selected.value = [standalone.id, 'excluded']
 picker.apply()
 assert.deepEqual(pickedFiles, [['pick', [standalone]]])
+const trashedNote = { ...record, deletedAt: '2026-11-18T12:00:00Z' }
+const noteDeleteCalls = []
+globalThis.fetch = async (url, options) => {
+  if (options?.method === 'DELETE') noteDeleteCalls.push(url)
+  return { ok: true, status: 200, json: async () => ({ records: [], total: 0, page: 1, categories: [] }) }
+}
+confirmed = false
+await state.changeTrashState(trashedNote, 'purge')
+assert.deepEqual(noteDeleteCalls, [])
+confirmed = true
+await state.changeTrashState(record, 'purge')
+assert.deepEqual(noteDeleteCalls, [])
+await state.changeTrashState(trashedNote, 'purge')
+assert.deepEqual(noteDeleteCalls, ['/api/records/12/trash'])
+state.activeView.value = 'trash'
+state.records.value = [trashedNote, { ...trashedNote, id: 13 }]
+state.batchIds.value = [12, 13]
+state.isLoading.value = false
+await state.trashSelectedRecords('purge')
+assert.deepEqual(noteDeleteCalls.slice(1), ['/api/records/12/trash', '/api/records/13/trash'])
+assert.match(confirmations.at(-1), /2 条笔记.*无法恢复/)
 console.log('PASS: reader actions, filter reset and saved search shortcuts')
