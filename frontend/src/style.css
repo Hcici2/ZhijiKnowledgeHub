@@ -1,10 +1,24 @@
 /* Shared base: one typography and focus system for every surface. */
 :root {
+  --zh-bg: #f6f5f2;
+  --zh-panel: #fffdf9;
+  --zh-field: #f9f7f1;
+  --zh-ink: #302b23;
+  --zh-muted: #6d6253;
+  --zh-border: #e7e0d3;
+  --zh-accent: #916322;
+  --zh-focus: #a56d19;
+  --zh-radius-sm: 8px;
+  --zh-radius-md: 12px;
+  --zh-gap-sm: 8px;
+  --zh-gap-md: 12px;
+  --zh-control-height: 38px;
+  --zh-overlay-shadow: 0 12px 36px #302b2326, 0 2px 6px #302b2312;
   font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
   font-size: 14px;
   line-height: 1.6;
-  color: #292825;
-  background: #f6f5f2;
+  color: var(--zh-ink);
+  background: var(--zh-bg);
   color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -15,7 +29,29 @@ body { margin: 0; }
 #app { width: 100%; min-height: 100svh; }
 button, input, textarea, select { font-family: inherit; }
 button, summary, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
-:focus-visible { outline: 2px solid #a56d19; outline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--zh-focus); outline-offset: 3px; }
+
+.zh-popover {
+  position: fixed;
+  inset: 0;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  background: var(--zh-panel);
+  color: var(--zh-ink);
+  padding: var(--zh-gap-md);
+  border: 1px solid var(--zh-border);
+  border-radius: var(--zh-radius-md);
+  box-shadow: var(--zh-overlay-shadow);
+}
+@supports (position-area: bottom) {
+  .zh-popover {
+    inset: auto;
+    position-area: bottom span-right;
+    position-try-fallbacks: flip-inline, flip-block, flip-block flip-inline;
+    margin: 6px 0;
+  }
+}
 button:disabled { cursor: not-allowed; }
 h1, h2, h3 { color: #292825; font-family: inherit; letter-spacing: 0; }
 h1, h2 { margin: 0 0 12px; }
