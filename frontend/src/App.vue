@@ -1201,6 +1201,26 @@ function clearSearch() {
   return restartList()
 }
 
+const activeLibraryFilters = computed(() => {
+  const filters: string[] = []
+  if (activeKeyword.value) filters.push('关键词：' + activeKeyword.value)
+  if (selectedCategory.value && activeView.value !== 'inbox') filters.push('分类：' + categoryLabel(selectedCategory.value))
+  if (selectedTag.value) filters.push('标签：' + selectedTag.value)
+  if (!calendarVisible.value && (appliedDateFrom.value || appliedDateTo.value)) {
+    filters.push('日期：' + (appliedDateFrom.value || '不限') + ' 至 ' + (appliedDateTo.value || '不限'))
+  }
+  return filters
+})
+
+function clearLibraryFilters() {
+  if (batchMoveBusy.value || batchBusy.value) return
+  selectedCategory.value = ''
+  selectedTag.value = ''
+  resetDates()
+  resetSavedSearchForm()
+  return clearSearch()
+}
+
 type CaptureDraft = { title: string, category: string, content: string }
 const captureDraftKey = 'zhiji-capture-draft-v1'
 const hasCaptureDraft = computed(() => !!(captureTitle.value.trim() || message.value.trim()))
@@ -2909,6 +2929,11 @@ onUnmounted(() => {
                 <span>{{ !dailyReviewLoading && dailyReviewChanged ? '有未保存草稿' : dailyReviewExists ? '已写' : '开始写' }}</span>
                 <span aria-hidden="true">›</span>
               </button>
+          <div v-if="activeLibraryFilters.length" class="active-library-filters" aria-label="当前筛选">
+            <span>当前筛选</span>
+            <span v-for="filter in activeLibraryFilters" :key="filter" class="record-tag">{{ filter }}</span>
+            <button type="button" class="note-toolbar-text" :disabled="batchMoveBusy || batchBusy" @click="clearLibraryFilters">清除全部筛选</button>
+          </div>
           <div v-show="!calendarVisible || !splitReader || splitCalendarControls === 'filters'" class="library-filters">
             <form class="search-toolbar" @submit.prevent="searchRecords">
               <select
@@ -6312,6 +6337,8 @@ dialog.note-detail-dialog[open]:has(.edit-form) { max-height: calc(100dvh - 24px
 .reader-meta-action[aria-pressed="true"] { background: #f4ead6; }
 .reader-meta-filter { white-space: normal; overflow-wrap: anywhere; }
 .reader-meta-filter:hover { background: #eee2ca; }
+.active-library-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-block: 6px; color: var(--note-muted); font-size: 12px; }
+.active-library-filters .record-tag { max-width: 100%; overflow-wrap: anywhere; }
 </style>
 <style scoped>
 .draft-continue-button { background: #f4ead6; color: #76511c; cursor: pointer; }
