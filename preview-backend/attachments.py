@@ -181,6 +181,18 @@ def attachment_router(get_db, require_session, data_dir, db_path):
         return FileResponse(archive_path, media_type='application/zip', filename='知己附件.zip',
                             background=BackgroundTask(folder.cleanup))
 
+    @router.delete('/records/{record_id}/attachments/{key}')
+    def detach_file(record_id: int, key: str):
+        with lock, get_db() as conn:
+            updated = conn.execute("""
+                UPDATE attachments SET record_id=NULL
+                WHERE id=? AND record_id=? AND trashed_at IS NULL
+                AND EXISTS (SELECT 1 FROM records WHERE id=? AND deleted_at IS NULL)
+            """, (key, record_id, record_id))
+            if not updated.rowcount:
+                raise HTTPException(404, '找不到这篇笔记中可解除关联的附件。')
+        return {'success': True}
+
     @router.post('/attachments/{key}/trash')
     def trash_file(key: str):
         with lock, get_db() as conn:

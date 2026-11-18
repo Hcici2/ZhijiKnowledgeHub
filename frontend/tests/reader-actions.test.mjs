@@ -358,3 +358,18 @@ try {
 } finally {
   globalThis.document = originalDocument
 }
+state.linkedRecord.value = record
+state.linkedAttachments.value = [linked]
+state.attachmentLibrary.value = [linked]
+globalThis.fetch = async (url, options) => {
+  assert.equal(url, '/api/records/12/attachments/' + linked.id)
+  assert.equal(options.method, 'DELETE')
+  return new Response('{}')
+}
+confirmed = false
+await state.detachNoteAttachment(record.id, linked)
+assert.deepEqual(state.linkedAttachments.value, [linked])
+confirmed = true
+await state.detachNoteAttachment(record.id, linked)
+assert.deepEqual(state.linkedAttachments.value, [])
+assert.equal(state.attachmentLibrary.value[0].record_id, null)

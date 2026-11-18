@@ -78,6 +78,18 @@ note = create_record(RecordCreate(content='带附件的笔记', attachment_ids=[
 second = complete(upload(Body(), 'example.html'))
 update_record(note['id'], RecordUpdate(attachment_ids=[second['id']]))
 assert len(list_files(note['id'])['attachments']) == 2
+detach = endpoint('/api/records/{record_id}/attachments/{key}', 'DELETE')
+try:
+    detach(note['id'] + 1, second['id'])
+except HTTPException as error:
+    assert error.status_code == 404
+else:
+    raise AssertionError('detached an attachment belonging to another note')
+detach(note['id'], second['id'])
+assert len(list_files(note['id'])['attachments']) == 1
+assert any(file['id'] == second['id'] and file['record_id'] is None for file in list_files()['attachments'])
+assert Path(serve(second['id']).path).read_bytes() == b'example bytes'
+update_record(note['id'], RecordUpdate(attachment_ids=[second['id']]))
 try:
     create_record(RecordCreate(content='should rollback', attachment_ids=[first['id']]))
 except HTTPException as error:

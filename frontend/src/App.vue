@@ -1553,6 +1553,28 @@ function toggleAttachmentBatchMode() {
 async function changeAttachmentTrash(file: NoteAttachment, action: 'trash' | 'restore' | 'purge') {
   return changeAttachmentsTrash([file], action)
 }
+async function detachNoteAttachment(recordId: number, file: NoteAttachment) {
+  if (attachmentActionBusy.value || attachmentDownloadBusy.value) return
+  if (!window.confirm(`将「${file.name}」从这篇笔记移除？文件仍会保留在附件库。`)) return
+  attachmentActionBusy.value = true
+  attachmentActionMessage.value = ''
+  try {
+    await attachmentRequest('/api/records/' + recordId + '/attachments/' + encodeURIComponent(file.id), { method: 'DELETE' })
+    attachmentLibrary.value = attachmentLibrary.value.map(item =>
+      item.id === file.id ? { ...item, record_id: null, record_title: null, deleted_at: null } : item
+    )
+    if (linkedRecord.value?.id === recordId) {
+      linkedAttachments.value = linkedAttachments.value.filter(item => item.id !== file.id)
+      attachmentActionMessage.value = '已解除关联，文件仍可在附件库找到。'
+    }
+  } catch (error) {
+    if (linkedRecord.value?.id === recordId) {
+      attachmentActionMessage.value = error instanceof Error ? error.message : '解除关联失败，请重试。'
+    }
+  } finally {
+    attachmentActionBusy.value = false
+  }
+}
 async function changeAttachmentsTrash(files: NoteAttachment[], action: 'trash' | 'restore' | 'purge') {
   if (attachmentActionBusy.value || !files.length) return
   const label = files.length === 1 ? '「' + files[0]!.name + '」' : files.length + ' 个附件'
@@ -4173,6 +4195,8 @@ onUnmounted(() => {
                   <span class="attachment-file-info">{{ file.name }}</span>
                   <a v-if="!attachmentInlineKind(file.name) && attachmentCanPreview(file.name)" class="note-toolbar-text" :href="attachmentUrl(file, true)" target="_blank" rel="noopener">预览</a>
                   <a class="note-toolbar-text" :href="attachmentUrl(file)" :download="file.name">下载</a>
+                  <button v-if="!linkedRecord.deletedAt" type="button" class="note-toolbar-text"
+                    :disabled="attachmentActionBusy || attachmentDownloadBusy" @click="detachNoteAttachment(linkedRecord.id, file)">解除关联</button>
                   <button type="button" class="note-toolbar-text" :disabled="attachmentActionBusy || attachmentDownloadBusy" @click="changeAttachmentTrash(file, 'trash')">删除</button>
                   <AttachmentPreview v-if="attachmentInlineKind(file.name)" :kind="attachmentInlineKind(file.name)" :name="file.name" :src="attachmentUrl(file, true)" />
                 </li>
