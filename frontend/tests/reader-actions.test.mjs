@@ -506,8 +506,13 @@ assert.equal(state.libraryPaneWidth.value, 470)
 state.setLibraryPaneWidth(380, 1000)
 assert.equal(state.libraryPaneWidth.value, 380)
 assert.equal(state.appliedDateTo.value, '2026-03-02')
-state.dateFromInput.value = '2026-03-04'
-state.dateToInput.value = '2026-03-01'
-await state.applyDates()
+await state.applyDates('2026-03-04', '2026-03-01')
 assert.match(state.dateError.value, /不能晚于/)
 assert.equal(state.appliedDateFrom.value, '2026-02-01')
+
+await state.filterDatePreset('today', new Date(2026, 0, 1, 0, 0))
+assert.equal(state.appliedDateFrom.value, '2026-01-01')
+assert.equal(state.appliedDateTo.value, '2026-01-01')
+await state.filterDatePreset('week', new Date(2025, 11, 31, 23, 59, 59))
+assert.equal(state.appliedDateFrom.value, '2025-12-25')
+assert.equal(state.appliedDateTo.value, '2025-12-31')

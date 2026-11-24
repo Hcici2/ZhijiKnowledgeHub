@@ -426,8 +426,8 @@ function applySavedSearch(id = savedSearchId.value) {
   libraryMode.value = 'list'
   selectedCategory.value = saved.category
   selectedTag.value = saved.tag ?? ''
-  appliedDateFrom.value = dateFromInput.value = saved.date_from ?? ''
-  appliedDateTo.value = dateToInput.value = saved.date_to ?? ''
+  appliedDateFrom.value = saved.date_from ?? ''
+  appliedDateTo.value = saved.date_to ?? ''
   datesOpen.value = Boolean(appliedDateFrom.value || appliedDateTo.value)
   dateError.value = ''
   searchQuery.value = saved.keyword
@@ -533,8 +533,8 @@ function restoreViewFilters(view: RecordView, resetFilters = false) {
   selectedCategory.value = saved?.category ?? ''
   selectedTag.value = saved?.tag ?? ''
   recordOrder.value = previous?.order ?? 'newest'
-  appliedDateFrom.value = dateFromInput.value = saved?.from ?? ''
-  appliedDateTo.value = dateToInput.value = saved?.to ?? ''
+  appliedDateFrom.value = saved?.from ?? ''
+  appliedDateTo.value = saved?.to ?? ''
   datesOpen.value = Boolean(appliedDateFrom.value || appliedDateTo.value)
   savedSearchId.value = savedSearches.value.find(search => search.id === saved?.savedSearch)?.id ?? null
   libraryMode.value = view === 'library' ? saved?.mode ?? 'list' : 'list'
@@ -847,32 +847,30 @@ const currentPage = ref(1)
 const totalRecords = ref(0)
 const pageCount = computed(() => Math.max(1, Math.ceil(totalRecords.value / pageSize)))
 const datesOpen = ref(false)
-const dateFromInput = ref('')
-const dateToInput = ref('')
 const appliedDateFrom = ref('')
 const appliedDateTo = ref('')
 const dateError = ref('')
 
 function resetDates() {
   datesOpen.value = false
-  appliedDateFrom.value = dateFromInput.value = ''
-  appliedDateTo.value = dateToInput.value = ''
+  appliedDateFrom.value = ''
+  appliedDateTo.value = ''
   dateError.value = ''
 }
 
-function applyDates() {
-  if (dateFromInput.value && dateToInput.value && dateFromInput.value > dateToInput.value) {
+function applyDates(from: string, to: string) {
+  if (from && to && from > to) {
     dateError.value = '开始日期不能晚于结束日期。'
     return
   }
-  appliedDateFrom.value = dateFromInput.value
-  appliedDateTo.value = dateToInput.value
+  appliedDateFrom.value = from
+  appliedDateTo.value = to
   dateError.value = ''
   savedSearchId.value = null
   return restartList()
 }
 
-function filterDatePreset(preset: 'all' | 'today' | 'week' | 'month-days' | 'month', end = new Date()) {
+function datePresetRange(preset: 'all' | 'today' | 'week' | 'month-days' | 'month', end = new Date()) {
   const start = new Date(end)
   const finish = new Date(end)
   if (preset === 'week') start.setDate(start.getDate() - 6)
@@ -881,12 +879,12 @@ function filterDatePreset(preset: 'all' | 'today' | 'week' | 'month-days' | 'mon
     start.setDate(1)
     finish.setMonth(finish.getMonth() + 1, 0)
   }
-  dateFromInput.value = preset === 'all' ? '' : localDateKey(start)
-  dateToInput.value = preset === 'all' ? '' : localDateKey(finish)
-  return applyDates()
+  return { from: preset === 'all' ? '' : localDateKey(start), to: preset === 'all' ? '' : localDateKey(finish) }
 }
-
-function filterLastSevenDays() { return filterDatePreset('week') }
+function filterDatePreset(preset: Parameters<typeof datePresetRange>[0], end = new Date()) {
+  const { from, to } = datePresetRange(preset, end)
+  return applyDates(from, to)
+}
 
 function clearDates() {
   resetDates()
@@ -1455,11 +1453,13 @@ function clearAttachmentDates() {
   attachmentDateFrom.value = ''
   attachmentDateTo.value = ''
 }
-function filterAttachmentsLastWeek() {
-  const today = new Date()
-  attachmentDateTo.value = localDateKey(today)
-  today.setDate(today.getDate() - 6)
-  attachmentDateFrom.value = localDateKey(today)
+function applyAttachmentDates(from: string, to: string) {
+  attachmentDateFrom.value = from
+  attachmentDateTo.value = to
+}
+function filterAttachmentPreset(preset: Parameters<typeof datePresetRange>[0]) {
+  const { from, to } = datePresetRange(preset)
+  applyAttachmentDates(from, to)
 }
 const onlyUnlinkedAttachments = ref(false)
 const unlinkedAttachmentCount = computed(() => attachmentLibrary.value.filter(file => file.record_id == null).length)
@@ -3584,14 +3584,9 @@ onUnmounted(() => {
             </ul>
           </section>
           <div class="settings-fields attachment-filters" role="group" :aria-label="attachmentTrashVisible ? '按删除日期筛选' : '按上传日期筛选'">
-            <label class="section-description">{{ attachmentTrashVisible ? '删除起日' : '上传起日' }}
-              <input v-model="attachmentDateFrom" type="date" class="category-filter" :max="attachmentDateTo || undefined" />
-            </label>
-            <label class="section-description">{{ attachmentTrashVisible ? '删除止日' : '上传止日' }}
-              <input v-model="attachmentDateTo" type="date" class="category-filter" :min="attachmentDateFrom || undefined" />
-            </label>
-            <button type="button" class="search-clear" @click="filterAttachmentsLastWeek">最近 7 天</button>
-            <button v-if="attachmentDateFrom || attachmentDateTo" type="button" class="search-clear" @click="clearAttachmentDates">清除日期</button>
+            <DateRangePicker :key="attachmentTrashVisible ? 'deleted' : 'uploaded'" :from="attachmentDateFrom" :to="attachmentDateTo"
+              :label="attachmentTrashVisible ? '删除日期范围' : '上传日期范围'"
+              @apply="applyAttachmentDates" @preset="filterAttachmentPreset" />
           </div>
           <p v-if="attachmentDateInvalid" class="search-error" role="alert">起始日期必须早于或等于结束日期。</p>
           <p v-if="attachmentActionMessage" role="status" class="section-description">{{ attachmentActionMessage }}</p>
@@ -3852,9 +3847,8 @@ onUnmounted(() => {
             </form>
 
             <div class="library-secondary-tools">
-              <DateRangePicker v-if="!calendarVisible" v-model:from="dateFromInput" v-model:to="dateToInput"
-                label="笔记日期范围" :error="dateError" @apply="applyDates"
-                @preset="$event === 'week' ? filterLastSevenDays() : filterDatePreset($event)" />
+              <DateRangePicker v-if="!calendarVisible" :from="appliedDateFrom" :to="appliedDateTo"
+                label="笔记日期范围" @apply="applyDates" @preset="filterDatePreset" />
               <button type="button" class="search-clear advanced-filters-toggle" :aria-expanded="datesOpen" aria-controls="advanced-library-filters" @click="datesOpen = !datesOpen">高级筛选</button>
             </div>
             <div v-show="datesOpen" id="advanced-library-filters" class="advanced-library-filters">

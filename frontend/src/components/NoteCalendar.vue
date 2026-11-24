@@ -9,6 +9,8 @@ const props = defineProps<{
   error?: boolean
   itemLabel?: string
   rangePicker?: boolean
+  rangeStart?: string
+  rangeEnd?: string
 }>()
 const emit = defineEmits<{ select: [day: string], today: [], navigate: [day: string] }>()
 
@@ -22,6 +24,11 @@ const monthMenu = ref<HTMLDetailsElement | null>(null)
 const yearList = ref<HTMLElement | null>(null)
 const draftYear = ref(year.value)
 const yearChoices = computed(() => {
+  if (props.rangePicker) {
+    const start = Math.max(minYear, year.value - 10)
+    const end = Math.min(maxYear, year.value + 10)
+    return Array.from({ length: end - start + 1 }, (_, index) => end - index)
+  }
   const todayYear = Number(props.today.slice(0, 4))
   const start = Math.min(1900, Math.max(minYear, year.value - 15))
   const end = Math.min(maxYear, Math.max(todayYear + 15, year.value + 15))
@@ -56,6 +63,20 @@ function moveMonth(delta: number) {
   selectMonth(target.getFullYear(), target.getMonth() + 1)
 }
 
+async function moveDayFocus(event: KeyboardEvent, day: string) {
+  const offsets: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }
+  const offset = offsets[event.key]
+  if (!props.rangePicker || !offset) return
+  event.preventDefault()
+  const grid = (event.currentTarget as HTMLElement).parentElement
+  const date = calendarDate(year.value, month.value - 1, Number(day.slice(-2)) + offset)
+  if (date.getFullYear() < minYear || date.getFullYear() > maxYear) return
+  const key = [String(date.getFullYear()).padStart(4, '0'), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-')
+  emit('navigate', key)
+  await nextTick()
+  grid?.querySelector<HTMLButtonElement>(`[data-day="${key}"]`)?.focus({ preventScroll: true })
+}
+
 async function onMonthMenuToggle() {
   if (!monthMenu.value?.open) return
   draftYear.value = year.value
@@ -71,7 +92,14 @@ async function onMonthMenuToggle() {
 function closeMonthMenu() {
   if (!monthMenu.value?.open) return
   monthMenu.value.open = false
-  monthMenu.value.querySelector('summary')?.focus()
+  monthMenu.value.querySelector('summary')?.focus({ preventScroll: true })
+}
+
+function escapeMonthMenu(event: KeyboardEvent) {
+  if (!monthMenu.value?.open) return
+  event.preventDefault()
+  event.stopPropagation()
+  closeMonthMenu()
 }
 
 function jumpToMonth(selectedMonth: number) {
@@ -87,9 +115,13 @@ function jumpToMonth(selectedMonth: number) {
       <div class="calendar-navigation">
         <button type="button" aria-label="上个月" title="上个月" @click="moveMonth(-1)">‹</button>
         <details ref="monthMenu" class="calendar-month-menu"
-          @toggle="onMonthMenuToggle" @keydown.esc.stop.prevent="closeMonthMenu">
+          @toggle="onMonthMenuToggle" @keydown.esc="escapeMonthMenu">
           <summary :aria-label="monthLabel + '，选择年份和月份'">{{ monthLabel }} <span class="month-chevron" aria-hidden="true"></span></summary>
           <div class="month-picker">
+            <label v-if="rangePicker" class="jump-year">年份
+              <input v-model.number="draftYear" type="number" inputmode="numeric" :min="minYear" :max="maxYear"
+                @keydown.enter.prevent="jumpToMonth(month)" />
+            </label>
             <div ref="yearList" class="year-options" aria-label="选择年份" role="group">
               <button v-for="item in yearChoices" :key="item" type="button"
                 :aria-pressed="item === draftYear" @click="draftYear = item">{{ item }} 年</button>
@@ -103,14 +135,17 @@ function jumpToMonth(selectedMonth: number) {
         </details>
         <button type="button" aria-label="下个月" title="下个月" @click="moveMonth(1)">›</button>
       </div>
-      <button type="button" class="calendar-today" @click="emit('today')">今天</button>
+      <button type="button" class="calendar-today" @click="emit('today')">{{ rangePicker ? '回到本月' : '今天' }}</button>
     </div>
     <div class="calendar-grid">
       <span v-for="day in weekdays" :key="day" class="calendar-weekday">{{ day }}</span>
       <span v-for="space in offset" :key="'space-' + space" aria-hidden="true"></span>
       <button v-for="cell in cells" :key="cell.key" type="button" class="calendar-day"
-        :class="{ 'calendar-selected': cell.key === selectedDay, 'is-today': cell.key === today }"
-        :aria-pressed="cell.key === selectedDay"
+        :data-day="cell.key" :tabindex="rangePicker && cell.key !== selectedDay ? -1 : 0"
+        :class="{ 'calendar-selected': rangePicker ? cell.key === rangeStart || cell.key === rangeEnd : cell.key === selectedDay,
+          'in-range': rangePicker && rangeStart && rangeEnd && cell.key > rangeStart && cell.key < rangeEnd, 'is-today': cell.key === today }"
+        :aria-pressed="rangePicker ? cell.key === rangeStart || cell.key === rangeEnd : cell.key === selectedDay"
+        @keydown="moveDayFocus($event, cell.key)"
         :aria-label="cell.key + (counts[cell.key] ? '，' + counts[cell.key] + ' 条' + (itemLabel || '笔记') : '')"
         @click="emit('select', cell.key)">
         <span>{{ cell.day }}</span>
@@ -118,7 +153,7 @@ function jumpToMonth(selectedMonth: number) {
       </button>
     </div>
     <p v-if="error" class="calendar-total" role="alert">无法读取本月{{ itemLabel || '笔记' }}数。</p>
-    <p v-else class="calendar-total" role="status">{{ counting ? '正在统计…' : '本月 ' + total + ' 条' + (itemLabel || '笔记') }}</p>
+    <p v-else-if="!rangePicker" class="calendar-total" role="status">{{ counting ? '正在统计…' : '本月 ' + total + ' 条' + (itemLabel || '笔记') }}</p>
   </section>
 </template>
 
@@ -202,6 +237,8 @@ function jumpToMonth(selectedMonth: number) {
   padding: 3px 5px 3px 1px;
   border-right: 1px solid #eee4d4;
 }
+.jump-year { grid-column:1/-1; display:flex; align-items:center; gap:8px; padding:4px; color:var(--zh-muted); font-size:13px; }
+.jump-year input { min-width:0; width:7em; padding:5px 8px; border:1px solid var(--zh-border); border-radius:var(--zh-radius-sm); background:var(--zh-panel); font:inherit; }
 
 .month-options {
   display: grid;
