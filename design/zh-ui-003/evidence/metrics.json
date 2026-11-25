@@ -1,0 +1,62 @@
+[
+  {
+    "mode": "old",
+    "width": 1440,
+    "overflow": 0,
+    "toolHeight": 149,
+    "visible": 4,
+    "readWidth": 720,
+    "navWidth": 208,
+    "firstRow": 358
+  },
+  {
+    "mode": "old",
+    "width": 1280,
+    "overflow": 0,
+    "toolHeight": 149,
+    "visible": 3,
+    "readWidth": 615,
+    "navWidth": 208,
+    "firstRow": 358
+  },
+  {
+    "mode": "new",
+    "width": 1440,
+    "overflow": 0,
+    "toolHeight": 55,
+    "visible": 6,
+    "readWidth": 625,
+    "navWidth": 184,
+    "firstRow": 201
+  },
+  {
+    "mode": "new",
+    "width": 1280,
+    "overflow": 0,
+    "toolHeight": 55,
+    "visible": 5,
+    "readWidth": 601,
+    "navWidth": 184,
+    "firstRow": 201
+  },
+  {
+    "mode": "new",
+    "width": 768,
+    "overflow": 0,
+    "toolHeight": 0,
+    "visible": 0,
+    "readWidth": 614,
+    "navWidth": 56,
+    "firstRow": 0
+  },
+  {
+    "mode": "new",
+    "width": 390,
+    "overflow": 0,
+    "toolHeight": 0,
+    "visible": 0,
+    "readWidth": 274,
+    "navWidth": 56,
+    "firstRow": 0
+  }
+]
