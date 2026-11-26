@@ -1,0 +1,2229 @@
+{
+  "metrics": [
+    {
+      "version": "R2",
+      "width": 1440,
+      "id": "list",
+      "overflow": 0,
+      "body": {
+        "x": 602.90625,
+        "y": 65,
+        "width": 785.1875,
+        "height": 1774.71875
+      },
+      "title": {
+        "x": 573,
+        "y": 23,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1381,
+        "y": 16,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "id": "reader",
+      "overflow": 0,
+      "body": {
+        "x": 602.90625,
+        "y": 65,
+        "width": 785.1875,
+        "height": 1774.71875
+      },
+      "title": {
+        "x": 573,
+        "y": 23,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1381,
+        "y": 16,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "id": "calendar",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "id": "clip",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "id": "files",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "id": "detail",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "id": "check",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 24,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "id": "settings",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "id": "compose",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "id": "date",
+      "overflow": 0,
+      "body": {
+        "x": 602.90625,
+        "y": 65,
+        "width": 785.1875,
+        "height": 1774.71875
+      },
+      "title": {
+        "x": 573,
+        "y": 23,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1381,
+        "y": 16,
+        "width": 37,
+        "height": 32
+      },
+      "panel": {
+        "x": 316,
+        "y": 198.5,
+        "width": 358,
+        "height": 551.5
+      },
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "id": "link",
+      "overflow": 0,
+      "body": {
+        "x": 602.90625,
+        "y": 65,
+        "width": 785.1875,
+        "height": 476.375
+      },
+      "title": {
+        "x": 573,
+        "y": 23,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1381,
+        "y": 16,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "id": "trash",
+      "overflow": 0,
+      "body": {
+        "x": 602.90625,
+        "y": 65,
+        "width": 785.1875,
+        "height": 430.78125
+      },
+      "title": {
+        "x": 573,
+        "y": 23,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1381,
+        "y": 16,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "id": "inbox",
+      "overflow": 0,
+      "body": {
+        "x": 602.90625,
+        "y": 65,
+        "width": 785.1875,
+        "height": 430.78125
+      },
+      "title": {
+        "x": 573,
+        "y": 23,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1381,
+        "y": 16,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "id": "star",
+      "overflow": 0,
+      "body": {
+        "x": 602.90625,
+        "y": 65,
+        "width": 785.1875,
+        "height": 1774.71875
+      },
+      "title": {
+        "x": 573,
+        "y": 23,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1381,
+        "y": 16,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "id": "list",
+      "overflow": 0,
+      "body": {
+        "x": 551,
+        "y": 65,
+        "width": 729,
+        "height": 1791.609375
+      },
+      "title": {
+        "x": 573,
+        "y": 23,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1221,
+        "y": 16,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "id": "reader",
+      "overflow": 0,
+      "body": {
+        "x": 551,
+        "y": 65,
+        "width": 729,
+        "height": 1791.609375
+      },
+      "title": {
+        "x": 573,
+        "y": 23,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1221,
+        "y": 16,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "id": "calendar",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "id": "clip",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "id": "files",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "id": "detail",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "id": "check",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 24,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "id": "settings",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "id": "compose",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "id": "date",
+      "overflow": 0,
+      "body": {
+        "x": 551,
+        "y": 65,
+        "width": 729,
+        "height": 1791.609375
+      },
+      "title": {
+        "x": 573,
+        "y": 23,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1221,
+        "y": 16,
+        "width": 37,
+        "height": 32
+      },
+      "panel": {
+        "x": 316,
+        "y": 198.5,
+        "width": 358,
+        "height": 551.5
+      },
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "id": "link",
+      "overflow": 0,
+      "body": {
+        "x": 551,
+        "y": 65,
+        "width": 729,
+        "height": 501.78125
+      },
+      "title": {
+        "x": 573,
+        "y": 23,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1221,
+        "y": 16,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "id": "trash",
+      "overflow": 0,
+      "body": {
+        "x": 551,
+        "y": 65,
+        "width": 729,
+        "height": 428.1875
+      },
+      "title": {
+        "x": 573,
+        "y": 23,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1221,
+        "y": 16,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "id": "inbox",
+      "overflow": 0,
+      "body": {
+        "x": 551,
+        "y": 65,
+        "width": 729,
+        "height": 428.1875
+      },
+      "title": {
+        "x": 573,
+        "y": 23,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1221,
+        "y": 16,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "id": "star",
+      "overflow": 0,
+      "body": {
+        "x": 551,
+        "y": 65,
+        "width": 729,
+        "height": 1791.609375
+      },
+      "title": {
+        "x": 573,
+        "y": 23,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1221,
+        "y": 16,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "id": "list",
+      "overflow": 0,
+      "body": {
+        "x": 57,
+        "y": 65,
+        "width": 710,
+        "height": 1692.921875
+      },
+      "title": {
+        "x": 68,
+        "y": 23,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 719,
+        "y": 16,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "id": "reader",
+      "overflow": 0,
+      "body": {
+        "x": 57,
+        "y": 65,
+        "width": 710,
+        "height": 1692.921875
+      },
+      "title": {
+        "x": 68,
+        "y": 23,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 719,
+        "y": 16,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "id": "calendar",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "id": "clip",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "id": "files",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "id": "detail",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "id": "check",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 24,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "id": "settings",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "id": "compose",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "id": "date",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": {
+        "x": 172,
+        "y": 198.5,
+        "width": 358,
+        "height": 549
+      },
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "id": "link",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "id": "trash",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "id": "inbox",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "id": "star",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "id": "list",
+      "overflow": 0,
+      "body": {
+        "x": 56,
+        "y": 71,
+        "width": 334,
+        "height": 2235.078125
+      },
+      "title": {
+        "x": 68,
+        "y": 17,
+        "width": 67.96875,
+        "height": 36
+      },
+      "close": {
+        "x": 143.96875,
+        "y": 38,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "id": "reader",
+      "overflow": 0,
+      "body": {
+        "x": 56,
+        "y": 71,
+        "width": 334,
+        "height": 2235.078125
+      },
+      "title": {
+        "x": 68,
+        "y": 17,
+        "width": 67.96875,
+        "height": 36
+      },
+      "close": {
+        "x": 143.96875,
+        "y": 38,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "id": "calendar",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "id": "clip",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "id": "files",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "id": "detail",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "id": "check",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 24,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "id": "settings",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "id": "compose",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "id": "date",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": {
+        "x": 16,
+        "y": 283,
+        "width": 358,
+        "height": 549
+      },
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "id": "link",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "id": "trash",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "id": "inbox",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "id": "star",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1440,
+      "id": "list",
+      "overflow": 0,
+      "body": {
+        "x": 602.90625,
+        "y": 48,
+        "width": 785.1875,
+        "height": 1774.71875
+      },
+      "title": {
+        "x": 573,
+        "y": 14.5,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1381,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1440,
+      "id": "reader",
+      "overflow": 0,
+      "body": {
+        "x": 602.90625,
+        "y": 48,
+        "width": 785.1875,
+        "height": 1774.71875
+      },
+      "title": {
+        "x": 573,
+        "y": 14.5,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1381,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1440,
+      "id": "calendar",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1440,
+      "id": "clip",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R3",
+      "width": 1440,
+      "id": "files",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R3",
+      "width": 1440,
+      "id": "detail",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R3",
+      "width": 1440,
+      "id": "check",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 24,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1440,
+      "id": "settings",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1440,
+      "id": "compose",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1440,
+      "id": "date",
+      "overflow": 0,
+      "body": {
+        "x": 602.90625,
+        "y": 48,
+        "width": 785.1875,
+        "height": 1774.71875
+      },
+      "title": {
+        "x": 573,
+        "y": 14.5,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1381,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": {
+        "x": 316,
+        "y": 181.5,
+        "width": 358,
+        "height": 551.5
+      },
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1440,
+      "id": "link",
+      "overflow": 0,
+      "body": {
+        "x": 602.90625,
+        "y": 48,
+        "width": 785.1875,
+        "height": 569.375
+      },
+      "title": {
+        "x": 573,
+        "y": 14.5,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1381,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1440,
+      "id": "trash",
+      "overflow": 0,
+      "body": {
+        "x": 602.90625,
+        "y": 48,
+        "width": 785.1875,
+        "height": 430.78125
+      },
+      "title": {
+        "x": 573,
+        "y": 14.5,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1381,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1440,
+      "id": "inbox",
+      "overflow": 0,
+      "body": {
+        "x": 602.90625,
+        "y": 48,
+        "width": 785.1875,
+        "height": 430.78125
+      },
+      "title": {
+        "x": 573,
+        "y": 14.5,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1381,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1440,
+      "id": "star",
+      "overflow": 0,
+      "body": {
+        "x": 602.90625,
+        "y": 48,
+        "width": 785.1875,
+        "height": 1774.71875
+      },
+      "title": {
+        "x": 573,
+        "y": 14.5,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1381,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1280,
+      "id": "list",
+      "overflow": 0,
+      "body": {
+        "x": 551,
+        "y": 48,
+        "width": 729,
+        "height": 1791.609375
+      },
+      "title": {
+        "x": 573,
+        "y": 14.5,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1221,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1280,
+      "id": "reader",
+      "overflow": 0,
+      "body": {
+        "x": 551,
+        "y": 48,
+        "width": 729,
+        "height": 1791.609375
+      },
+      "title": {
+        "x": 573,
+        "y": 14.5,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1221,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1280,
+      "id": "calendar",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1280,
+      "id": "clip",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R3",
+      "width": 1280,
+      "id": "files",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R3",
+      "width": 1280,
+      "id": "detail",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R3",
+      "width": 1280,
+      "id": "check",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 24,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1280,
+      "id": "settings",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1280,
+      "id": "compose",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1280,
+      "id": "date",
+      "overflow": 0,
+      "body": {
+        "x": 551,
+        "y": 48,
+        "width": 729,
+        "height": 1791.609375
+      },
+      "title": {
+        "x": 573,
+        "y": 14.5,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1221,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": {
+        "x": 316,
+        "y": 181.5,
+        "width": 358,
+        "height": 551.5
+      },
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1280,
+      "id": "link",
+      "overflow": 0,
+      "body": {
+        "x": 551,
+        "y": 48,
+        "width": 729,
+        "height": 594.78125
+      },
+      "title": {
+        "x": 573,
+        "y": 14.5,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1221,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1280,
+      "id": "trash",
+      "overflow": 0,
+      "body": {
+        "x": 551,
+        "y": 48,
+        "width": 729,
+        "height": 428.1875
+      },
+      "title": {
+        "x": 573,
+        "y": 14.5,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1221,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1280,
+      "id": "inbox",
+      "overflow": 0,
+      "body": {
+        "x": 551,
+        "y": 48,
+        "width": 729,
+        "height": 428.1875
+      },
+      "title": {
+        "x": 573,
+        "y": 14.5,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1221,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 1280,
+      "id": "star",
+      "overflow": 0,
+      "body": {
+        "x": 551,
+        "y": 48,
+        "width": 729,
+        "height": 1791.609375
+      },
+      "title": {
+        "x": 573,
+        "y": 14.5,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 1221,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 768,
+      "id": "list",
+      "overflow": 0,
+      "body": {
+        "x": 57,
+        "y": 48,
+        "width": 710,
+        "height": 1692.921875
+      },
+      "title": {
+        "x": 68,
+        "y": 14.5,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 719,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 768,
+      "id": "reader",
+      "overflow": 0,
+      "body": {
+        "x": 57,
+        "y": 48,
+        "width": 710,
+        "height": 1692.921875
+      },
+      "title": {
+        "x": 68,
+        "y": 14.5,
+        "width": 70,
+        "height": 18
+      },
+      "close": {
+        "x": 719,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 768,
+      "id": "calendar",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 768,
+      "id": "clip",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R3",
+      "width": 768,
+      "id": "files",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R3",
+      "width": 768,
+      "id": "detail",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R3",
+      "width": 768,
+      "id": "check",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 24,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 768,
+      "id": "settings",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 768,
+      "id": "compose",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 768,
+      "id": "date",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": {
+        "x": 172,
+        "y": 181.5,
+        "width": 358,
+        "height": 549
+      },
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 768,
+      "id": "link",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 768,
+      "id": "trash",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 768,
+      "id": "inbox",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 768,
+      "id": "star",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 390,
+      "id": "list",
+      "overflow": 0,
+      "body": {
+        "x": 56,
+        "y": 48,
+        "width": 334,
+        "height": 2235.078125
+      },
+      "title": {
+        "x": 68,
+        "y": 14.5,
+        "width": 48,
+        "height": 18
+      },
+      "close": {
+        "x": 341,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 390,
+      "id": "reader",
+      "overflow": 0,
+      "body": {
+        "x": 56,
+        "y": 48,
+        "width": 334,
+        "height": 2235.078125
+      },
+      "title": {
+        "x": 68,
+        "y": 14.5,
+        "width": 48,
+        "height": 18
+      },
+      "close": {
+        "x": 341,
+        "y": 7.5,
+        "width": 37,
+        "height": 32
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 390,
+      "id": "calendar",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 390,
+      "id": "clip",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R3",
+      "width": 390,
+      "id": "files",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R3",
+      "width": 390,
+      "id": "detail",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 34
+    },
+    {
+      "version": "R3",
+      "width": 390,
+      "id": "check",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 24,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 390,
+      "id": "settings",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 390,
+      "id": "compose",
+      "overflow": 0,
+      "body": null,
+      "title": null,
+      "close": null,
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 390,
+      "id": "date",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": {
+        "x": 16,
+        "y": 283,
+        "width": 358,
+        "height": 549
+      },
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 390,
+      "id": "link",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 390,
+      "id": "trash",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 390,
+      "id": "inbox",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    },
+    {
+      "version": "R3",
+      "width": 390,
+      "id": "star",
+      "overflow": 0,
+      "body": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "title": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "close": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "panel": null,
+      "taskCount": 0,
+      "fileCount": 0
+    }
+  ],
+  "errors": []
+}

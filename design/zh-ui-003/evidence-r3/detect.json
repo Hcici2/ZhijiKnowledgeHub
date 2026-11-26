@@ -1,0 +1,116 @@
+[
+  {
+    "label": "reader",
+    "findings": []
+  },
+  {
+    "label": "list",
+    "findings": []
+  },
+  {
+    "label": "inbox",
+    "findings": []
+  },
+  {
+    "label": "star",
+    "findings": []
+  },
+  {
+    "label": "link",
+    "findings": []
+  },
+  {
+    "label": "trash",
+    "findings": []
+  },
+  {
+    "label": "calendar",
+    "findings": []
+  },
+  {
+    "label": "clip",
+    "findings": []
+  },
+  {
+    "label": "check",
+    "findings": []
+  },
+  {
+    "label": "settings",
+    "findings": []
+  },
+  {
+    "label": "compose",
+    "findings": []
+  },
+  {
+    "label": "date",
+    "findings": []
+  },
+  {
+    "label": "attachment-inspector",
+    "findings": []
+  },
+  {
+    "label": "task-editor",
+    "findings": []
+  },
+  {
+    "label": "reader-more-mobile",
+    "findings": [
+      {
+        "antipattern": "text-occlusion",
+        "name": "Text occluded by an overlapping element",
+        "description": "Text is painted under an opaque element or a second text run, so part of it cannot be read. A decorative box, a stacked layer, or an inline element with leaked padding lands on the words instead of beside them. Give overlapping layers room, or move the text out from under the layer above it.",
+        "severity": "warning",
+        "category": "quality",
+        "file": "http://127.0.0.1:18403/#reader",
+        "line": 0,
+        "snippet": "div.doc-meta \"工作经验　/　2026-11-18\" is 58% covered by an opaque element (div)",
+        "selector": "div.doc-meta"
+      },
+      {
+        "antipattern": "text-occlusion",
+        "name": "Text occluded by an overlapping element",
+        "description": "Text is painted under an opaque element or a second text run, so part of it cannot be read. A decorative box, a stacked layer, or an inline element with leaked padding lands on the words instead of beside them. Give overlapping layers room, or move the text out from under the layer above it.",
+        "severity": "warning",
+        "category": "quality",
+        "file": "http://127.0.0.1:18403/#reader",
+        "line": 0,
+        "snippet": "h2 \"周五交付新版首页\" is 61% covered by an opaque element (button.btn)",
+        "selector": "h2"
+      }
+    ]
+  },
+  {
+    "label": "attachment-trash",
+    "findings": []
+  },
+  {
+    "label": "note-actions",
+    "findings": [
+      {
+        "antipattern": "text-occlusion",
+        "name": "Text occluded by an overlapping element",
+        "description": "Text is painted under an opaque element or a second text run, so part of it cannot be read. A decorative box, a stacked layer, or an inline element with leaked padding lands on the words instead of beside them. Give overlapping layers room, or move the text out from under the layer above it.",
+        "severity": "warning",
+        "category": "quality",
+        "file": "http://127.0.0.1:18403/#reader",
+        "line": 0,
+        "snippet": "span.excerpt \"明确新版首页的发布范围、视觉验收和上线前检查。\" is 40% covered by an opaque element (div.note-menu)",
+        "selector": "button.note.active-note > span.excerpt"
+      },
+      {
+        "antipattern": "text-occlusion",
+        "name": "Text occluded by an overlapping element",
+        "description": "Text is painted under an opaque element or a second text run, so part of it cannot be read. A decorative box, a stacked layer, or an inline element with leaked padding lands on the words instead of beside them. Give overlapping layers room, or move the text out from under the layer above it.",
+        "severity": "warning",
+        "category": "quality",
+        "file": "http://127.0.0.1:18403/#reader",
+        "line": 0,
+        "snippet": "time \"11/18\" is 100% covered by an opaque element (button.btn)",
+        "selector": "button.note.active-note > span.metadata > time"
+      }
+    ]
+  }
+]
