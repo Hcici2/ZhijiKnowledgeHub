@@ -1,0 +1,649 @@
+{
+  "metrics": [
+    {
+      "version": "R2",
+      "width": 1440,
+      "scene": "list",
+      "overflow": 0,
+      "visibleText": 1265,
+      "heading": "我的知识库",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "scene": "reader",
+      "overflow": 0,
+      "visibleText": 2122,
+      "heading": "我的知识库",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "scene": "calendar",
+      "overflow": 0,
+      "visibleText": 320,
+      "heading": "笔记日历",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "scene": "clip",
+      "overflow": 0,
+      "visibleText": 342,
+      "heading": "附件库",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "scene": "check",
+      "overflow": 0,
+      "visibleText": 782,
+      "heading": "待办事项",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "scene": "settings",
+      "overflow": 0,
+      "visibleText": 188,
+      "heading": "设置",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "scene": "compose",
+      "overflow": 0,
+      "visibleText": 103,
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "scene": "date",
+      "overflow": 0,
+      "visibleText": 2333,
+      "heading": "我的知识库",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "scene": "inbox",
+      "overflow": 0,
+      "visibleText": 243,
+      "heading": "收集箱",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "scene": "star",
+      "overflow": 0,
+      "visibleText": 1037,
+      "heading": "置顶",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "scene": "link",
+      "overflow": 0,
+      "visibleText": 235,
+      "heading": "网站与工具",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1440,
+      "scene": "trash",
+      "overflow": 0,
+      "visibleText": 196,
+      "heading": "回收站",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "scene": "list",
+      "overflow": 0,
+      "visibleText": 1265,
+      "heading": "我的知识库",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "scene": "reader",
+      "overflow": 0,
+      "visibleText": 2122,
+      "heading": "我的知识库",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "scene": "calendar",
+      "overflow": 0,
+      "visibleText": 320,
+      "heading": "笔记日历",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "scene": "clip",
+      "overflow": 0,
+      "visibleText": 342,
+      "heading": "附件库",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "scene": "check",
+      "overflow": 0,
+      "visibleText": 782,
+      "heading": "待办事项",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "scene": "settings",
+      "overflow": 0,
+      "visibleText": 188,
+      "heading": "设置",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "scene": "compose",
+      "overflow": 0,
+      "visibleText": 103,
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "scene": "date",
+      "overflow": 0,
+      "visibleText": 2333,
+      "heading": "我的知识库",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "scene": "inbox",
+      "overflow": 0,
+      "visibleText": 243,
+      "heading": "收集箱",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "scene": "star",
+      "overflow": 0,
+      "visibleText": 1037,
+      "heading": "置顶",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "scene": "link",
+      "overflow": 0,
+      "visibleText": 235,
+      "heading": "网站与工具",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 1280,
+      "scene": "trash",
+      "overflow": 0,
+      "visibleText": 196,
+      "heading": "回收站",
+      "nav": 200
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "scene": "list",
+      "overflow": 0,
+      "visibleText": 1202,
+      "heading": "我的知识库",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "scene": "reader",
+      "overflow": 0,
+      "visibleText": 868,
+      "heading": "我的知识库",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "scene": "calendar",
+      "overflow": 0,
+      "visibleText": 269,
+      "heading": "笔记日历",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "scene": "clip",
+      "overflow": 0,
+      "visibleText": 291,
+      "heading": "附件库",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "scene": "check",
+      "overflow": 0,
+      "visibleText": 731,
+      "heading": "待办事项",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "scene": "settings",
+      "overflow": 0,
+      "visibleText": 137,
+      "heading": "设置",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "scene": "compose",
+      "overflow": 0,
+      "visibleText": 52,
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "scene": "date",
+      "overflow": 0,
+      "visibleText": 1413,
+      "heading": "我的知识库",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "scene": "inbox",
+      "overflow": 0,
+      "visibleText": 119,
+      "heading": "收集箱",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "scene": "star",
+      "overflow": 0,
+      "visibleText": 117,
+      "heading": "置顶",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "scene": "link",
+      "overflow": 0,
+      "visibleText": 69,
+      "heading": "网站与工具",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 768,
+      "scene": "trash",
+      "overflow": 0,
+      "visibleText": 71,
+      "heading": "回收站",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "scene": "list",
+      "overflow": 0,
+      "visibleText": 1202,
+      "heading": "我的知识库",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "scene": "reader",
+      "overflow": 0,
+      "visibleText": 868,
+      "heading": "我的知识库",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "scene": "calendar",
+      "overflow": 0,
+      "visibleText": 269,
+      "heading": "笔记日历",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "scene": "clip",
+      "overflow": 0,
+      "visibleText": 291,
+      "heading": "附件库",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "scene": "check",
+      "overflow": 0,
+      "visibleText": 479,
+      "heading": "待办事项",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "scene": "settings",
+      "overflow": 0,
+      "visibleText": 137,
+      "heading": "设置",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "scene": "compose",
+      "overflow": 0,
+      "visibleText": 52,
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "scene": "date",
+      "overflow": 0,
+      "visibleText": 1413,
+      "heading": "我的知识库",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "scene": "inbox",
+      "overflow": 0,
+      "visibleText": 119,
+      "heading": "收集箱",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "scene": "star",
+      "overflow": 0,
+      "visibleText": 117,
+      "heading": "置顶",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "scene": "link",
+      "overflow": 0,
+      "visibleText": 69,
+      "heading": "网站与工具",
+      "nav": 56
+    },
+    {
+      "version": "R2",
+      "width": 390,
+      "scene": "trash",
+      "overflow": 0,
+      "visibleText": 71,
+      "heading": "回收站",
+      "nav": 56
+    },
+    {
+      "version": "R1",
+      "width": 1440,
+      "scene": "list",
+      "overflow": 0,
+      "visibleText": 1371,
+      "heading": "我的知识库",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1440,
+      "scene": "reader",
+      "overflow": 0,
+      "visibleText": 2317,
+      "heading": "我的知识库",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1440,
+      "scene": "calendar",
+      "overflow": 0,
+      "visibleText": 329,
+      "heading": "我的知识库",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1440,
+      "scene": "clip",
+      "overflow": 0,
+      "visibleText": 176,
+      "heading": "附件库",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1440,
+      "scene": "check",
+      "overflow": 0,
+      "visibleText": 526,
+      "heading": "待办事项",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1440,
+      "scene": "settings",
+      "overflow": 0,
+      "visibleText": 178,
+      "heading": "设置",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1440,
+      "scene": "compose",
+      "overflow": 0,
+      "visibleText": 198,
+      "heading": "我的知识库",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1440,
+      "scene": "date",
+      "overflow": 0,
+      "visibleText": 187,
+      "heading": "我的知识库",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1440,
+      "scene": "inbox",
+      "overflow": 0,
+      "visibleText": 161,
+      "heading": "收集箱",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1440,
+      "scene": "star",
+      "overflow": 0,
+      "visibleText": 154,
+      "heading": "置顶",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1440,
+      "scene": "link",
+      "overflow": 0,
+      "visibleText": 125,
+      "heading": "网站与工具",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1440,
+      "scene": "trash",
+      "overflow": 0,
+      "visibleText": 100,
+      "heading": "回收站",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1280,
+      "scene": "list",
+      "overflow": 0,
+      "visibleText": 132,
+      "heading": "我的知识库",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1280,
+      "scene": "reader",
+      "overflow": 0,
+      "visibleText": 1079,
+      "heading": "我的知识库",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1280,
+      "scene": "calendar",
+      "overflow": 0,
+      "visibleText": 329,
+      "heading": "我的知识库",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1280,
+      "scene": "clip",
+      "overflow": 0,
+      "visibleText": 176,
+      "heading": "附件库",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1280,
+      "scene": "check",
+      "overflow": 0,
+      "visibleText": 526,
+      "heading": "待办事项",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1280,
+      "scene": "settings",
+      "overflow": 0,
+      "visibleText": 178,
+      "heading": "设置",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1280,
+      "scene": "compose",
+      "overflow": 0,
+      "visibleText": 198,
+      "heading": "我的知识库",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1280,
+      "scene": "date",
+      "overflow": 0,
+      "visibleText": 187,
+      "heading": "我的知识库",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1280,
+      "scene": "inbox",
+      "overflow": 0,
+      "visibleText": 161,
+      "heading": "收集箱",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1280,
+      "scene": "star",
+      "overflow": 0,
+      "visibleText": 154,
+      "heading": "置顶",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1280,
+      "scene": "link",
+      "overflow": 0,
+      "visibleText": 125,
+      "heading": "网站与工具",
+      "nav": 184
+    },
+    {
+      "version": "R1",
+      "width": 1280,
+      "scene": "trash",
+      "overflow": 0,
+      "visibleText": 100,
+      "heading": "回收站",
+      "nav": 184
+    }
+  ],
+  "warnings": []
+}
