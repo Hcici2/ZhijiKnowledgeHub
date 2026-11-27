@@ -1,22 +1,38 @@
 /* Shared base: one typography and focus system for every surface. */
 :root {
-  --zh-bg: #f7f7f5;
-  --zh-panel: #fdfdfc;
-  --zh-sidebar: #f1f1ef;
-  --zh-field: #f4f4f2;
-  --zh-ink: #242628;
-  --zh-muted: #626368;
-  --zh-border: #dededb;
-  --zh-accent: #745a76;
-  --zh-selected: #eee8ee;
-  --zh-focus: #745a76;
-  --zh-radius-sm: 8px;
-  --zh-radius-md: 12px;
+  --zh-bg: #f7f8f7;
+  --zh-panel: #fff;
+  --zh-sidebar: #f1f2ef;
+  --zh-field: #f6f7f5;
+  --zh-ink: #252a28;
+  --zh-muted: #58625c;
+  --zh-border: #dce0dc;
+  --zh-accent: #405f57;
+  --zh-accent-hover: #344f48;
+  --zh-selected: #e0ebe6;
+  --zh-hover: #eff3f0;
+  --zh-danger: #974839;
+  --zh-focus: var(--zh-accent);
+  --zh-radius-sm: 6px;
+  --zh-radius-md: 10px;
   --zh-gap-sm: 8px;
   --zh-gap-md: 12px;
-  --zh-control-height: 36px;
-  --zh-overlay-shadow: 0 12px 36px #24262820, 0 2px 6px #24262810;
-  font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+  --zh-control-height: 32px;
+  --zh-toolbar: 48px;
+  --zh-icon: 16px;
+  --zh-nav-width: 200px;
+  --zh-list-width: 350px;
+  --zh-measure: 670px;
+  --zh-title-page: 26px;
+  --zh-title-panel: 20px;
+  --zh-title-doc: clamp(28px, 2.5vw, 34px);
+  --zh-title-group: 14px;
+  --zh-body: 16px;
+  --zh-ui: 13px;
+  --zh-meta: 12px;
+  --zh-overlay-shadow: 0 12px 36px #2028231e;
+  --zh-font: "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+  font-family: var(--zh-font);
   font-size: 14px;
   line-height: 1.6;
   color: var(--zh-ink);
@@ -55,10 +71,10 @@ button, summary, a, input, select, textarea { -webkit-tap-highlight-color: trans
   }
 }
 button:disabled { cursor: not-allowed; }
-h1, h2, h3 { color: #292825; font-family: inherit; letter-spacing: 0; }
+h1, h2, h3 { color: var(--zh-ink); font-family: inherit; letter-spacing: 0; }
 h1, h2 { margin: 0 0 12px; }
 p { margin: 0; }
-::selection { background: #f3dfb2; color: #312713; }
+::selection { background: var(--zh-selected); color: var(--zh-ink); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; scroll-behavior: auto !important; }
 }

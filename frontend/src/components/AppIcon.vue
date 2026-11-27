@@ -12,6 +12,7 @@ const paths: Record<string, string> = {
   tasks: 'M9 5h11 M9 12h11 M9 19h11 M3 5l1 1 2-3 M3 12l1 1 2-3 M3 19l1 1 2-3',
   settings: 'M12 3v3 M12 18v3 M3 12h3 M18 12h3 M5.6 5.6l2.1 2.1 M16.3 16.3l2.1 2.1 M5.6 18.4l2.1-2.1 M16.3 7.7l2.1-2.1 M18 12a6 6 0 1 1-12 0 6 6 0 0 1 12 0 M14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0',
   note: 'M6 3h9l4 4v14H6z M14 3v5h5 M9 12h7 M9 16h5',
+  filter: 'M3 6h18 M6 12h12 M9 18h6',
   search: 'M16 10a6 6 0 1 1-12 0 6 6 0 0 1 12 0 M15 15l6 6',
   plus: 'M12 5v14 M5 12h14',
   copy: 'M9 8h11v13H9z M5 16H3V3h11v2',

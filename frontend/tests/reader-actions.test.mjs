@@ -516,3 +516,50 @@ assert.equal(state.appliedDateTo.value, '2026-01-01')
 await state.filterDatePreset('week', new Date(2025, 11, 31, 23, 59, 59))
 assert.equal(state.appliedDateFrom.value, '2025-12-25')
 assert.equal(state.appliedDateTo.value, '2025-12-31')
+
+// Reader state is scoped to a view and stores no note text. A new component
+// instance represents a fresh authenticated page load against the same storage.
+const readingStore = new Map()
+globalThis.localStorage = {
+  getItem: key => readingStore.get(key) ?? null,
+  setItem: (key, value) => readingStore.set(key, String(value))
+}
+globalThis.document = { activeElement: null, body: {} }
+const readingRows = [32, 19].map(id => ({
+  id, title: 'Private title ' + id, content: 'Private body ' + id,
+  category: '工作经验', created_at: '2026-11-21T10:00:00'
+}))
+globalThis.fetch = async url => {
+  const id = Number(String(url).match(/records\/(\d+)\/links/)?.[1])
+  return { ok: true, status: 200, json: async () => ({
+    success: true, total: 2, page: 1, records: readingRows,
+    record: readingRows.find(item => item.id === id), links: [], tasks: [], attachments: []
+  }) }
+}
+async function reloadReader(wide = true, view = 'library') {
+  const instance = load('../src/App.vue')
+  instance.activeView.value = view
+  instance.wideScreen.value = wide
+  instance.authState.value = 'ready'
+  await instance.loadInitialRecords()
+  await vue.nextTick()
+  return instance
+}
+let reading = await reloadReader()
+assert.equal(reading.libraryPaneWidth.value, 350)
+assert.equal(reading.linkedRecord.value.id, 32)
+await reading.openLinks(reading.records.value[1])
+assert.equal(readingStore.get('zhiji-reading-library'), '19/1')
+reading = await reloadReader()
+assert.equal(reading.linkedRecord.value.id, 19)
+reading.dismissReader()
+assert.equal(reading.coreSplit.value, true)
+assert.equal(reading.splitReader.value, false)
+reading = await reloadReader()
+assert.equal(reading.detailOpen.value, false)
+assert.equal(readingStore.get('zhiji-reading-library'), 'closed')
+assert.equal((await reloadReader(true, 'pinned')).linkedRecord.value.id, 32)
+readingStore.set('zhiji-reading-library', '499/1')
+assert.equal((await reloadReader()).linkedRecord.value.id, 32)
+assert.equal((await reloadReader(false)).detailOpen.value, false)
+console.log('PASS: restore valid reader, fall back after deletion, remember explicit dismissal, independent desktop views and mobile list')
