@@ -188,6 +188,7 @@ function showLogin() {
   searchQuery.value = ''
   activeKeyword.value = ''
   viewFilters.clear()
+  dismissedReadingViews.clear()
   selectedCategory.value = ''
   activeView.value = 'library'
   libraryMode.value = 'list'
@@ -590,7 +591,7 @@ function openView(view: RecordView, noteFilter?: { day: string } | { category: s
   }
   return view === 'trash'
     ? Promise.all([loadRecords(), loadTrashPolicy()])
-    : loadRecords()
+    : loadInitialRecords()
 }
 const isLoading = ref(true)
 const listError = ref('')
@@ -896,6 +897,10 @@ const recordScrollRegion = ref<HTMLElement | null>(null)
 
 function restartList() {
   currentPage.value = 1
+  if (coreSplit.value && loadedTemporaryReading && !temporaryReading() && editingId.value === null) {
+    if (detailOpen.value && !closeActiveReader(false)) return
+    return loadInitialRecords()
+  }
   return loadRecords()
 }
 
@@ -1267,7 +1272,7 @@ async function trashSelectedRecords(action: boolean | 'purge' = false) {
     }
     if (authState.value !== 'ready') return
     batchIds.value = batchIds.value.filter(id => !moved.has(id))
-    if (purge && linkedRecord.value && moved.has(linkedRecord.value.id)) closeActiveReader()
+    if (!restore && linkedRecord.value && moved.has(linkedRecord.value.id)) closeActiveReader()
     if (moved.size) batchMoveStatus.value = restore ? `已恢复 ${moved.size} 条笔记。` : purge ? `已永久删除 ${moved.size} 条笔记。` : `已将 ${moved.size} 条笔记移入回收站。`
     if (moved.size < ids.length) batchMoveError.value = `有 ${ids.length - moved.size} 条笔记操作未完成，请检查列表后重试。`
     await loadRecords()
@@ -1330,12 +1335,16 @@ function currentRecordParams() {
   return params
 }
 
-async function loadRecords() {
+let loadedTemporaryReading = false
+
+async function loadRecords(readingAnchor?: number) {
   if (calendarVisible.value) void loadCalendarCounts()
   const request = ++latestRequest
   const params = currentRecordParams()
   params.set('page', String(currentPage.value))
   params.set('page_size', String(pageSize))
+  if (readingAnchor) params.set('anchor_id', String(readingAnchor))
+  loadedTemporaryReading = temporaryReading()
 
   isLoading.value = true
   listError.value = ''
@@ -2297,7 +2306,7 @@ async function changeTrashState(record: KnowledgeRecord, action: boolean | 'purg
       throw new Error(typeof data.detail === 'string' ? data.detail : '操作失败，请重试。')
     }
     if (editingId.value === record.id) cancelEdit()
-    if (purge && linkedRecord.value?.id === record.id) closeActiveReader()
+    if (!restore && linkedRecord.value?.id === record.id) closeActiveReader()
     if (purge) batchIds.value = batchIds.value.filter(id => id !== record.id)
     recordActionStatus.value = restore ? '已恢复到原分类。' : purge ? '笔记已永久删除。' : '已移到回收站。'
     await loadRecords()
@@ -2331,22 +2340,34 @@ function readingPreference() {
   try { return localStorage.getItem('zhiji-reading-' + activeView.value) ?? '' } catch { return '' }
 }
 
+// Closing a filtered preview hides this reader for the session without erasing its bookmark.
+const dismissedReadingViews = new Set<RecordView>()
+
+function temporaryReading() {
+  return Boolean(activeKeyword.value || selectedTag.value ||
+    (selectedCategory.value && activeView.value !== 'inbox') || calendarVisible.value ||
+    appliedDateFrom.value || appliedDateTo.value || recordOrder.value !== 'newest')
+}
+
 function rememberReading(id: number | 'closed') {
-  if (!['library', 'inbox', 'pinned'].includes(activeView.value) || calendarVisible.value) return
-  const page = currentRecordParams().size === 0 ? currentPage.value : 1
-  try { localStorage.setItem('zhiji-reading-' + activeView.value, id === 'closed' ? id : id + '/' + page) } catch { /* Optional browser storage. */ }
+  if (!['library', 'inbox', 'pinned'].includes(activeView.value) || temporaryReading()) return
+  try { localStorage.setItem('zhiji-reading-' + activeView.value, id === 'closed' ? id : id + '/' + currentPage.value) } catch { /* Optional browser storage. */ }
 }
 
 async function loadInitialRecords() {
-  if (coreSplit.value && activeView.value === 'library') {
-    const page = Number(readingPreference().split('/')[1])
-    if (Number.isSafeInteger(page) && page > 1) currentPage.value = page
+  if (coreSplit.value && !temporaryReading()) {
+    const [id, page] = readingPreference().split('/').map(Number)
+    if (Number.isSafeInteger(id) && id > 0) {
+      currentPage.value = Number.isSafeInteger(page) && page > 0 ? page : 1
+      return loadRecords(id)
+    }
   }
   return loadRecords()
 }
 
 function restoreVisibleReading() {
-  if (authState.value !== 'ready' || !coreSplit.value || detailOpen.value || !records.value.length) return
+  if (authState.value !== 'ready' || !coreSplit.value || detailOpen.value || !records.value.length ||
+      dismissedReadingViews.has(activeView.value)) return
   const preference = readingPreference()
   if (preference === 'closed') return
   const record = records.value.find(item => item.id === Number(preference.split('/')[0])) ?? records.value[0]
@@ -2354,7 +2375,10 @@ function restoreVisibleReading() {
 }
 
 function dismissReader() {
-  if (closeActiveReader()) rememberReading('closed')
+  if (closeActiveReader()) {
+    dismissedReadingViews.add(activeView.value)
+    rememberReading('closed')
+  }
 }
 const sidebarCollapsed = ref(false)
 const libraryPaneWidth = ref(350)
@@ -2586,6 +2610,7 @@ async function loadLinkRecord(id: number, keepVisible = false) {
 
 async function openLinks(record: KnowledgeRecord, mode: 'read' | 'edit' | 'suggest' | 'links' = 'read') {
   if (detailOpen.value && !allowReaderDismissal()) return
+  dismissedReadingViews.delete(activeView.value)
   if (!detailOpen.value || coreSplit.value) captureReaderOrigin(record.id)
   rememberReading(record.id)
   resetLinkDialog()

@@ -639,7 +639,7 @@ def validate_date_range(date_from, date_to):
         raise HTTPException(400, "开始日期不能晚于结束日期。")
 
 
-def query_records(q, category, view, tag, order, *, date_from=None, date_to=None, page=1, page_size=None):
+def query_records(q, category, view, tag, order, *, date_from=None, date_to=None, page=1, page_size=None, anchor_id=None):
     validate_date_range(date_from, date_to)
     keyword = q.strip()
     category_filter = category.strip()
@@ -701,6 +701,15 @@ def query_records(q, category, view, tag, order, *, date_from=None, date_to=None
         total = conn.execute(f"SELECT COUNT(*) FROM records {where_sql}", params).fetchone()[0]
         page = min(page, max(1, (total + page_size - 1) // page_size))
         rows = conn.execute(query + " LIMIT ? OFFSET ?", [*params, page_size, (page - 1) * page_size]).fetchall()
+        if anchor_id is not None and all(row["id"] != anchor_id for row in rows):
+            # A pin, insertion or deletion can move a bookmark across a page boundary.
+            rank = conn.execute(
+                f"SELECT position FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY {ordering}) AS position "
+                f"FROM records {where_sql}) WHERE id = ?", [*params, anchor_id]
+            ).fetchone()
+            if rank is not None:
+                page = (rank[0] - 1) // page_size + 1
+                rows = conn.execute(query + " LIMIT ? OFFSET ?", [*params, page_size, (page - 1) * page_size]).fetchall()
         return rows, total, page
 
 
@@ -727,11 +736,12 @@ def search_records(q: str = "", category: str = "", view: Literal["web", "recent
                    tag: str = "", order: Literal["newest", "oldest"] = "newest",
                    date_from: date | None = None, date_to: date | None = None,
                    page: Annotated[int, Query(ge=1)] = 1,
-                   page_size: Annotated[int, Query(ge=1, le=100)] = 100):
+                   page_size: Annotated[int, Query(ge=1, le=100)] = 100,
+                   anchor_id: Annotated[int | None, Query(ge=1)] = None):
     if view == "trash":
         purge_expired_trash()
     rows, total, page = query_records(q, category, view, tag, order, date_from=date_from,
-                                      date_to=date_to, page=page, page_size=page_size)
+                                      date_to=date_to, page=page, page_size=page_size, anchor_id=anchor_id)
     return {
         "success": True,
         "keyword": q.strip(),
