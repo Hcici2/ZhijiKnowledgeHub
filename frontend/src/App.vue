@@ -2,7 +2,7 @@
 <script setup lang="ts">
 
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import bookIcon from './assets/zhiji-book.png'
+import bookIcon from './assets/workspace-book.svg'
 import CategoryPicker from './components/CategoryPicker.vue'
 import NoteCalendar from './components/NoteCalendar.vue'
 import TaskEditor from './components/TaskEditor.vue'
@@ -188,6 +188,7 @@ function showLogin() {
   searchQuery.value = ''
   activeKeyword.value = ''
   viewFilters.clear()
+  dismissedReadingViews.clear()
   selectedCategory.value = ''
   activeView.value = 'library'
   libraryMode.value = 'list'
@@ -217,7 +218,7 @@ async function checkAuth() {
     if (!response.ok) throw new Error()
     const status = await response.json()
     authState.value = status.authenticated ? 'ready' : status.needs_setup ? 'setup' : 'login'
-    if (status.authenticated) await Promise.all([loadRecords(), loadSavedSearches(), loadCategories()])
+    if (status.authenticated) await Promise.all([loadInitialRecords(), loadSavedSearches(), loadCategories()])
   } catch {
     authState.value = 'offline'
   }
@@ -270,7 +271,7 @@ async function authAction(action: 'setup' | 'login' | 'logout' | 'password') {
       changingPassword.value = false
     } else {
       authState.value = 'ready'
-      await Promise.all([loadRecords(), loadSavedSearches(), loadCategories()])
+      await Promise.all([loadInitialRecords(), loadSavedSearches(), loadCategories()])
     }
   } catch (error) {
     authError.value = error instanceof Error && !(error instanceof TypeError)
@@ -590,7 +591,7 @@ function openView(view: RecordView, noteFilter?: { day: string } | { category: s
   }
   return view === 'trash'
     ? Promise.all([loadRecords(), loadTrashPolicy()])
-    : loadRecords()
+    : loadInitialRecords()
 }
 const isLoading = ref(true)
 const listError = ref('')
@@ -896,6 +897,10 @@ const recordScrollRegion = ref<HTMLElement | null>(null)
 
 function restartList() {
   currentPage.value = 1
+  if (coreSplit.value && loadedTemporaryReading && !temporaryReading() && editingId.value === null) {
+    if (detailOpen.value && !closeActiveReader(false)) return
+    return loadInitialRecords()
+  }
   return loadRecords()
 }
 
@@ -1267,7 +1272,7 @@ async function trashSelectedRecords(action: boolean | 'purge' = false) {
     }
     if (authState.value !== 'ready') return
     batchIds.value = batchIds.value.filter(id => !moved.has(id))
-    if (purge && linkedRecord.value && moved.has(linkedRecord.value.id)) closeActiveReader()
+    if (!restore && linkedRecord.value && moved.has(linkedRecord.value.id)) closeActiveReader()
     if (moved.size) batchMoveStatus.value = restore ? `已恢复 ${moved.size} 条笔记。` : purge ? `已永久删除 ${moved.size} 条笔记。` : `已将 ${moved.size} 条笔记移入回收站。`
     if (moved.size < ids.length) batchMoveError.value = `有 ${ids.length - moved.size} 条笔记操作未完成，请检查列表后重试。`
     await loadRecords()
@@ -1330,12 +1335,16 @@ function currentRecordParams() {
   return params
 }
 
-async function loadRecords() {
+let loadedTemporaryReading = false
+
+async function loadRecords(readingAnchor?: number) {
   if (calendarVisible.value) void loadCalendarCounts()
   const request = ++latestRequest
   const params = currentRecordParams()
   params.set('page', String(currentPage.value))
   params.set('page_size', String(pageSize))
+  if (readingAnchor) params.set('anchor_id', String(readingAnchor))
+  loadedTemporaryReading = temporaryReading()
 
   isLoading.value = true
   listError.value = ''
@@ -1359,6 +1368,7 @@ async function loadRecords() {
       totalRecords.value = data.total
       const visible = new Set(data.records.map(record => record.id))
       batchIds.value = batchIds.value.filter(id => visible.has(id))
+      restoreVisibleReading()
     }
   } catch {
     if (request === latestRequest) {
@@ -2296,7 +2306,7 @@ async function changeTrashState(record: KnowledgeRecord, action: boolean | 'purg
       throw new Error(typeof data.detail === 'string' ? data.detail : '操作失败，请重试。')
     }
     if (editingId.value === record.id) cancelEdit()
-    if (purge && linkedRecord.value?.id === record.id) closeActiveReader()
+    if (!restore && linkedRecord.value?.id === record.id) closeActiveReader()
     if (purge) batchIds.value = batchIds.value.filter(id => id !== record.id)
     recordActionStatus.value = restore ? '已恢复到原分类。' : purge ? '笔记已永久删除。' : '已移到回收站。'
     await loadRecords()
@@ -2323,9 +2333,55 @@ const readerHost = ref<HTMLElement | null>(null)
 const detailOpen = ref(false)
 const wideScreen = ref(false)
 const splitReader = computed(() => wideScreen.value && detailOpen.value && !calendarVisible.value && activeView.value !== 'settings' && activeView.value !== 'tasks' && activeView.value !== 'attachments')
-const coreSplit = computed(() => splitReader.value && activeView.value === 'library')
+const coreSplit = computed(() => wideScreen.value && !calendarVisible.value &&
+  ['library', 'inbox', 'pinned'].includes(activeView.value))
+
+function readingPreference() {
+  try { return localStorage.getItem('zhiji-reading-' + activeView.value) ?? '' } catch { return '' }
+}
+
+// Closing a filtered preview hides this reader for the session without erasing its bookmark.
+const dismissedReadingViews = new Set<RecordView>()
+
+function temporaryReading() {
+  return Boolean(activeKeyword.value || selectedTag.value ||
+    (selectedCategory.value && activeView.value !== 'inbox') || calendarVisible.value ||
+    appliedDateFrom.value || appliedDateTo.value || recordOrder.value !== 'newest')
+}
+
+function rememberReading(id: number | 'closed') {
+  if (!['library', 'inbox', 'pinned'].includes(activeView.value) || temporaryReading()) return
+  try { localStorage.setItem('zhiji-reading-' + activeView.value, id === 'closed' ? id : id + '/' + currentPage.value) } catch { /* Optional browser storage. */ }
+}
+
+async function loadInitialRecords() {
+  if (coreSplit.value && !temporaryReading()) {
+    const [id, page] = readingPreference().split('/').map(Number)
+    if (Number.isSafeInteger(id) && id > 0) {
+      currentPage.value = Number.isSafeInteger(page) && page > 0 ? page : 1
+      return loadRecords(id)
+    }
+  }
+  return loadRecords()
+}
+
+function restoreVisibleReading() {
+  if (authState.value !== 'ready' || !coreSplit.value || detailOpen.value || !records.value.length ||
+      dismissedReadingViews.has(activeView.value)) return
+  const preference = readingPreference()
+  if (preference === 'closed') return
+  const record = records.value.find(item => item.id === Number(preference.split('/')[0])) ?? records.value[0]
+  if (record) void openLinks(record)
+}
+
+function dismissReader() {
+  if (closeActiveReader()) {
+    dismissedReadingViews.add(activeView.value)
+    rememberReading('closed')
+  }
+}
 const sidebarCollapsed = ref(false)
-const libraryPaneWidth = ref(380)
+const libraryPaneWidth = ref(350)
 
 function setLibraryPaneWidth(width: number, available: number) {
   const max = Math.max(280, Math.min(540, Math.floor(available * .47)))
@@ -2554,7 +2610,9 @@ async function loadLinkRecord(id: number, keepVisible = false) {
 
 async function openLinks(record: KnowledgeRecord, mode: 'read' | 'edit' | 'suggest' | 'links' = 'read') {
   if (detailOpen.value && !allowReaderDismissal()) return
-  if (!detailOpen.value) captureReaderOrigin(record.id)
+  dismissedReadingViews.delete(activeView.value)
+  if (!detailOpen.value || coreSplit.value) captureReaderOrigin(record.id)
+  rememberReading(record.id)
   resetLinkDialog()
   detailOpen.value = true
   recordActionStatus.value = ''
@@ -2658,7 +2716,7 @@ function handleNoteDialogClosed() {
 
 function dismissNoteDialogOnEscape(event: Event) {
   event.preventDefault()
-  closeActiveReader()
+  dismissReader()
 }
 
 const backdropPresses = new WeakSet<HTMLDialogElement>()
@@ -2679,7 +2737,7 @@ function trackBackdropPress(event: PointerEvent) {
 function dismissBackdrop(event: MouseEvent, which: 'capture' | 'history' | 'note') {
   const dialog = event.currentTarget
   if (!(dialog instanceof HTMLDialogElement) || !backdropPresses.delete(dialog) || !isBackdrop(event, dialog)) return
-  if (which === 'note') closeActiveReader()
+  if (which === 'note') dismissReader()
   else if (which === 'capture' ? !captureBusy.value && !templateBusy.value : !historyBusy.value) dialog.close()
 }
 
@@ -3057,7 +3115,7 @@ async function focusLibrarySearch(event: KeyboardEvent) {
 async function shortcutNewNote(event: KeyboardEvent) {
   if (event.defaultPrevented || event.repeat || event.isComposing || event.getModifierState?.('AltGraph')) return
   if (!event.ctrlKey || !event.altKey || event.shiftKey || event.metaKey || event.code !== 'KeyN') return
-  if (authState.value !== 'ready' || activeView.value !== 'library' || detailOpen.value || batchMoveIsActive.value ||
+  if (authState.value !== 'ready' || activeView.value !== 'library' || (detailOpen.value && (!splitReader.value || editingId.value !== null)) || batchMoveIsActive.value ||
     changingPassword.value || captureDialog.value?.open || historyDialog.value?.open || reviewDialog.value?.open) return
   if (event.target instanceof HTMLElement && (event.target.isContentEditable || event.target.closest('input, textarea, select'))) return
   event.preventDefault()
@@ -3715,21 +3773,21 @@ onUnmounted(() => {
           </div>
         </section>
 
-        <div v-else class="note-workspace" :class="{ 'is-split': splitReader, 'core-split': coreSplit }"
+        <div v-else class="note-workspace" :class="{ 'is-split': splitReader || coreSplit, 'core-split': coreSplit }"
           :style="coreSplit ? { '--library-pane-width': libraryPaneWidth + 'px', '--editor-pane-width': editingId !== null && editWindowWidth ? editWindowWidth + 'px' : undefined } : splitReader && editingId !== null && editWindowWidth ? { gridTemplateColumns: 'minmax(336px, 1fr) clamp(350px, ' + editWindowWidth + 'px, calc(100% - 352px))' } : undefined"
-          @click.self="splitReader && closeActiveReader()">
+          @click.self="splitReader && dismissReader()">
         <section class="recent-card library-card" :class="{ 'library-list-card': !calendarVisible }">
           <div class="recent-heading">
             <div class="library-heading">
               <h1>{{ viewDetails.label }}</h1>
-              <div class="section-description">{{ totalRecords }} 条笔记</div>
+              <div v-if="!coreSplit" class="section-description">{{ totalRecords }} 条笔记</div>
             </div>
-            <div v-if="activeView === 'library'" class="library-segment" aria-label="知识库视图">
+            <div v-if="!coreSplit && activeView === 'library'" class="library-segment" aria-label="知识库视图">
               <button type="button" :aria-pressed="!calendarVisible" @click="changeLibraryMode('list')">列表</button>
               <button type="button" :aria-pressed="calendarVisible" @click="changeLibraryMode('calendar')">日历</button>
             </div>
-            <Teleport defer to="#workspace-primary-actions" :disabled="!coreSplit">
             <div v-if="activeView !== 'trash'" class="library-actions">
+              <Teleport defer to="#workspace-primary-actions" :disabled="!coreSplit">
               <details class="export-menu" @keydown.esc.stop="closeMoreMenu">
                 <summary class="search-clear">导出</summary>
                 <form class="export-controls" @submit.prevent="downloadRecords">
@@ -3750,12 +3808,12 @@ onUnmounted(() => {
                   <button class="search-submit" :disabled="exportBusy">{{ exportBusy ? '正在导出…' : '下载' }}</button>
                 </form>
               </details>
+              </Teleport>
               <button type="button" class="search-submit new-note-button" :title="activeView === 'library' ? '快捷键 Ctrl+Alt+N' : undefined"
                 :aria-keyshortcuts="activeView === 'library' ? 'Control+Alt+N' : undefined" @click="openCapture">
                 <AppIcon name="plus" :size="18" />{{ hasCaptureDraft || hasStoredCaptureDraft ? '继续草稿' : calendarVisible ? '记在这一天' : '新建笔记' }}
               </button>
             </div>
-            </Teleport>
           </div>
           <p v-if="exportError" class="search-error" role="alert">{{ exportError }}</p>
           <button v-if="activeView === 'trash'" type="button" class="search-clear" @click="openView('settings')">
@@ -3849,7 +3907,7 @@ onUnmounted(() => {
             <div class="library-secondary-tools">
               <DateRangePicker v-if="!calendarVisible" :from="appliedDateFrom" :to="appliedDateTo"
                 label="笔记日期范围" @apply="applyDates" @preset="filterDatePreset" />
-              <button type="button" class="search-clear advanced-filters-toggle" :aria-expanded="datesOpen" aria-controls="advanced-library-filters" @click="datesOpen = !datesOpen">高级筛选</button>
+              <button type="button" class="search-clear advanced-filters-toggle" :aria-expanded="datesOpen" aria-controls="advanced-library-filters" aria-label="高级筛选" title="高级筛选" @click="datesOpen = !datesOpen"><AppIcon v-if="coreSplit" name="filter" :size="16" /><span v-else>高级筛选</span></button>
             </div>
             <div v-show="datesOpen" id="advanced-library-filters" class="advanced-library-filters">
             <div v-if="!calendarVisible && (appliedDateFrom || appliedDateTo)" class="date-filter">
@@ -3983,9 +4041,9 @@ onUnmounted(() => {
                         <mark v-if="part.matched">{{ part.text }}</mark><template v-else>{{ part.text }}</template>
                       </template>
                     </button>
-                    <button v-if="!batchMoveIsActive" type="button" class="note-icon-button record-secondary-action" aria-label="复制原文" title="复制原文"
+                    <button v-if="!batchMoveIsActive && !coreSplit" type="button" class="note-icon-button record-secondary-action" aria-label="复制原文" title="复制原文"
                       @click="copyRecordText(record)"><AppIcon name="copy" :size="18" /></button>
-                    <button v-if="activeView !== 'trash' && !batchMoveIsActive" type="button" class="note-icon-button record-secondary-action" aria-label="历史版本" title="历史版本"
+                    <button v-if="activeView !== 'trash' && !batchMoveIsActive && !coreSplit" type="button" class="note-icon-button record-secondary-action" aria-label="历史版本" title="历史版本"
                       @click="openHistory(record)"><AppIcon name="recent" :size="18" /></button>
                     <div v-if="!batchMoveIsActive" class="record-quick-actions">
                       <template v-if="activeView === 'trash'">
@@ -3999,6 +4057,8 @@ onUnmounted(() => {
                         <div :id="'record-actions-' + record.id" class="record-more-actions zh-popover" popover
                           @click="($event.currentTarget as HTMLElement).hidePopover()">
                           <button type="button" @click="openLinks(record, 'edit')">编辑</button>
+                          <button v-if="coreSplit" type="button" @click="copyRecordText(record)">复制原文</button>
+                          <button v-if="coreSplit" type="button" @click="openHistory(record)">历史版本</button>
                           <button type="button" @click="openLinks(record, 'suggest')">整理建议</button>
                           <button type="button" @click="openLinks(record, 'links')">关联笔记</button>
                           <button type="button" @click="templateFromRecord(record)">存为模板</button>
@@ -4073,12 +4133,18 @@ onUnmounted(() => {
             </div>
             </div>
           </div>
+          <footer v-if="coreSplit" class="library-index-footer">
+            <span>{{ totalRecords }} 条笔记</span>
+            <button v-if="activeView === 'library'" type="button" class="search-clear" @click="changeLibraryMode('calendar')"><AppIcon name="calendar" :size="16" />日历</button>
+          </footer>
         </section>
         <div v-if="coreSplit" class="library-divider" role="separator" tabindex="0" aria-label="调整笔记列表宽度"
           aria-orientation="vertical" :aria-valuenow="libraryPaneWidth" :aria-valuemin="280" :aria-valuemax="540"
           @pointerdown="($event.currentTarget as HTMLElement).setPointerCapture($event.pointerId)"
           @pointermove="dragLibraryDivider" @keydown="resizeLibraryWithKey" />
-        <aside v-show="splitReader" ref="readerHost" class="note-detail-dialog split-note-reader" aria-label="笔记阅读区"></aside>
+        <aside v-show="splitReader || coreSplit" ref="readerHost" class="note-detail-dialog split-note-reader" aria-label="笔记阅读区">
+          <p v-if="coreSplit && !detailOpen" class="reader-empty">选择一条笔记开始阅读</p>
+        </aside>
         </div>
       </div>
       <dialog ref="captureDialog" class="links-dialog compose-dialog" :style="captureWindowWidth ? { width: 'min(' + captureWindowWidth + 'px, calc(100% - 24px))' } : undefined" aria-labelledby="compose-heading" @cancel="preventClosingCapture"
@@ -4313,7 +4379,7 @@ onUnmounted(() => {
               @click="startEdit(linkedRecord)">编辑</button>
           </div>
           <button type="button" class="note-icon-button note-close" aria-label="关闭笔记详情" title="关闭"
-            :disabled="isSavingEdit" @click="closeActiveReader()"><AppIcon name="close" /></button>
+            :disabled="isSavingEdit" @click="dismissReader()"><AppIcon name="close" /></button>
         </div>
         <p v-if="linkLoading && !linkedRecord" role="status">正在读取记录…</p>
         <p v-if="linkError" class="search-error" role="alert">{{ linkError }}</p>
@@ -6969,11 +7035,11 @@ textarea::placeholder {
 <style scoped>
 /* Zhiji / quiet workspace. Final visual layer; geometry and behavior stay in App.vue. */
 .app-shell, .auth-screen {
-  --note-border: #e8e5de;
-  --note-field: #f8f7f4;
-  --note-ink: #292825;
-  --note-muted: #77746d;
-  font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+  --note-border: var(--zh-border);
+  --note-field: var(--zh-field);
+  --note-ink: var(--zh-ink);
+  --note-muted: var(--zh-muted);
+  font-family: var(--zh-font);
   font-size: 14px;
   line-height: 1.6;
   letter-spacing: 0;
@@ -6983,8 +7049,8 @@ textarea::placeholder {
 .main-area { background: #f6f5f2; }
 .sidebar { background: #eeede8; border-right: 1px solid #e3e1da; padding-top: 24px; }
 .brand { border-bottom: 0; padding-bottom: 24px; margin-bottom: 6px; gap: 11px; }
-.brand-logo { width: 38px; height: 38px; border-radius: 10px; }
-.brand-name { font-size: 21px; font-weight: 650; letter-spacing: .08em; }
+.brand-logo { width: 34px; height: 34px; border-radius: 9px; }
+.brand-name { font-size: 19px; font-weight: 650; letter-spacing: .02em; }
 .brand-subtitle { color: #77746d; font-size: 11px; letter-spacing: .03em; }
 .nav-caption { color: #79766e; font-size: 11px; letter-spacing: .06em; padding-bottom: 12px; }
 .nav-item { min-height: 44px; border-radius: 9px; gap: 12px; color: #5c5a53; margin-bottom: 4px; }
@@ -6997,7 +7063,7 @@ textarea::placeholder {
 .topbar { min-height: 64px; background: #f6f5f2; border-bottom: 1px solid #e8e5de; padding-inline: 30px; }
 .breadcrumb { color: #77746d; font-size: 12px; }
 .breadcrumb span { color: #aaa69c; }
-.topbar .search-clear { background: transparent; border-color: transparent; color: #69665e; min-height: 36px; }
+.topbar .search-clear { background: transparent; border-color: transparent; color: var(--zh-muted); min-height: var(--zh-control-height); }
 .preview-label { background: #eeede8; color: #77746d; border: 0; font-size: 11px; }
 .content { max-width: 1160px; padding: 30px clamp(18px, 3vw, 40px); }
 .recent-card, .auth-card, .capture-card { background: #fff; border: 1px solid #e8e5de; border-radius: 16px; box-shadow: 0 3px 16px #29282504; }
@@ -7014,12 +7080,12 @@ textarea::placeholder {
 .search-submit, .search-clear, .category-filter, .new-note-button { min-height: 40px; font-size: 13px; border-radius: 9px; }
 .search-input-wrap { background: #f7f6f3; border-color: #e9e6df; border-radius: 9px; min-height: 42px; }
 .search-input-wrap input { font: inherit; font-size: 14px; color: #3c3933; }
-.search-input-wrap input::placeholder { color: #858077; }
+.search-input-wrap input::placeholder { color: var(--zh-muted); }
 .search-icon { color: #817c72; }
 .category-filter, .record-title-input, .edit-form textarea, .tag-row input { background: #faf9f7; border-color: #e5e2da; color: #38352f; }
 .library-filters { padding-bottom: 16px; border-bottom: 1px solid #eeece6; }
 .library-segment { background: #f0eee9; padding: 4px; border-radius: 10px; }
-.library-segment button { min-height: 34px; color: #777168; }
+.library-segment button { min-height: 34px; color: var(--zh-muted); }
 .library-segment button[aria-pressed="true"] { background: #fff; color: #4e4536; box-shadow: 0 1px 4px #29282510; }
 .record-item { padding: 21px 12px; border-radius: 10px; border-bottom: 1px solid #eeece7; background: transparent; box-shadow: none; gap: 14px; }
 .record-item:hover, .record-item:focus-within { background: #faf9f6; }
@@ -7030,7 +7096,7 @@ textarea::placeholder {
 .record-item .record-excerpt { font-size: 14px; line-height: 1.75; color: #78736a; margin-top: 5px; }
 .record-item .record-meta { margin-top: 12px; gap: 8px; align-items: center; color: #817b71; font-size: 12px; }
 .record-category, .record-tag { padding: 2px 7px; border: 0; border-radius: 5px; background: #f1efe9; color: #716650; font-size: 12px; font-weight: 400; }
-.note-icon-button, .note-reader-toolbar .note-icon-button { width: 36px; min-height: 36px; border-radius: 8px; background: transparent; color: #817b70; border-color: transparent; display: inline-grid; place-items: center; }
+.note-icon-button, .note-reader-toolbar .note-icon-button { width: 36px; min-height: 36px; border-radius: 8px; background: transparent; color: var(--zh-muted); border-color: transparent; display: inline-grid; place-items: center; }
 .note-icon-button:hover, .note-reader-toolbar .note-icon-button:hover { color: #76511c; background: #eee8db; }
 .record-more-actions, .export-menu .export-controls { background: #fff; border: 1px solid #e8e4da; border-radius: 12px; box-shadow: 0 8px 28px #29282518, 0 2px 6px #29282508; padding: 8px; }
 .record-more-actions button { min-height: 38px; border-radius: 7px; font-size: 13px; }
@@ -7054,7 +7120,7 @@ textarea::placeholder {
 .task-check { font-size: 15px; line-height: 1.65; }
 .task-meta { gap: 8px; color: #80776a; }
 .task-batch-bar { background: #faf7ef; border-color: #e8dfcd; }
-.empty-state { padding-block: 64px; color: #898174; font-size: 14px; line-height: 1.8; }
+.empty-state { padding-block: 64px; color: var(--zh-muted); font-size: 14px; line-height: 1.8; }
 .app-shell :deep(.calendar) { background: #faf9f6; border-color: #e8e4da; border-radius: 13px; }
 .app-shell :deep(.calendar-day) { background: #f0eee8; border-radius: 10px; }
 .app-shell :deep(.calendar-day.calendar-selected) { background: #ede0c6; color: #735121; }
@@ -7102,8 +7168,8 @@ textarea::placeholder {
 .reading-options label { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .reading-options select { padding: 7px; border: 1px solid #e7e1d5; border-radius: 7px; background: #faf8f4; color: inherit; font: inherit; }
 .reading-options .reading-spacing { justify-content: flex-start; }
-.reading-options small { color: #8a8173; font-size: 11px; }
-.reading-statistics { margin: 0 0 18px; color: #8a8173; font-size: 11px; font-variant-numeric: tabular-nums; }
+.reading-options small { color: var(--zh-muted); font-size: 11px; }
+.reading-statistics { margin: 0 0 18px; color: var(--zh-muted); font-size: var(--zh-meta); font-variant-numeric: tabular-nums; }
 </style>
 
 <style scoped>
